@@ -1,20 +1,26 @@
 #!/usr/bin/env python
 #--coding:utf-8--
 """
-PAW algorithm for cross-sample ChIP-seq/DNase-seq/ATAC-seq normalization. 
+PAW algorithm for cross-sample ChIP-seq/DNase-seq/ATAC-seq normalization with internal control. 
+
+2025-04-04: 
 """
 
+__author__ = "CAO Yaqiang"
+__date__ = "2025-04-04"
+__modified__ = ""
+__email__ = "caoyaqiang0410@gmail.com"
+
+
 #sys library
-import time
-import sys
 import os
-import argparse
-from glob import glob
+import time
+import warnings
 from copy import deepcopy
 from datetime import datetime
-from argparse import RawTextHelpFormatter
 
 #3rd library
+import click
 import pyBigWig
 import numpy as np
 import pandas as pd
@@ -22,16 +28,64 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 from sklearn.mixture import GaussianMixture as GMM
 
-#cLoops2
-from cLoops2.cmat import getBinMean
-from cLoops2.utils import getLogger
-from cLoops2.settings import *
-
 #global settings
-#logger
-date = time.strftime(' %Y-%m-%d', time.localtime(time.time()))
-logger = getLogger(fn=os.getcwd() + "/" + date.strip() + "_" +
-                   os.path.basename(__file__) + ".log")
+warnings.filterwarnings("ignore")
+#plotting setting
+import matplotlib as mpl
+mpl.use("pdf")
+import seaborn as sns
+mpl.rcParams["pdf.fonttype"] = 42
+mpl.rcParams["figure.figsize"] = (4, 2.75)
+mpl.rcParams["savefig.transparent"] = True
+mpl.rcParams["savefig.bbox"] = "tight"
+mpl.rcParams["font.size"] = 8.0
+mpl.rcParams["font.sans-serif"] = "Arial"
+mpl.rcParams["savefig.format"] = "pdf"
+import pylab
+sns.set_style("white")
+colors = [
+    (0.8941176470588236, 0.10196078431372549, 0.10980392156862745),
+    (0.21568627450980393, 0.49411764705882355, 0.7215686274509804),
+    (0.30196078431372547, 0.6862745098039216, 0.2901960784313726),
+    (0.596078431372549, 0.3058823529411765, 0.6392156862745098),
+    (1.0, 0.4980392156862745, 0.0),
+    (0, 0, 0),  #black
+    #(1.0, 1.0, 0.2),
+    #(0.7, 1.0, 0.2),
+    (0.6509803921568628, 0.33725490196078434, 0.1568627450980392),
+    (0.9686274509803922, 0.5058823529411764, 0.7490196078431373),
+    (0.6, 0.6, 0.6),
+    (0.5529411764705883, 0.8274509803921568, 0.7803921568627451),
+    (1.0, 1.0, 0.7019607843137254),
+    (0.7450980392156863, 0.7294117647058823, 0.8549019607843137),
+    (0.984313725490196, 0.5019607843137255, 0.4470588235294118),
+    (0.5019607843137255, 0.6941176470588235, 0.8274509803921568),
+    (0.9921568627450981, 0.7058823529411765, 0.3843137254901961),
+    (0.7019607843137254, 0.8705882352941177, 0.4117647058823529),
+    (0.9882352941176471, 0.803921568627451, 0.8980392156862745),
+]
+
+
+
+def rprint(message):
+    """
+    Print message with time.
+    @param message: str, 
+    @returns: None
+    """
+    report = "\t".join([ str(datetime.now()), message, ])
+    print(report)
+
+
+def getBinMean(s, bins=100):
+    """
+    Get the mean of bins for a array.
+    @param s: np.array
+    @param bins: int, how many bins as converted
+    """
+    width = int(len(s) / bins)
+    ns = s[:bins * width].reshape(-1, width).mean(axis=1)
+    return ns
 
 
 def help():
@@ -622,8 +676,85 @@ def main():
     logger.info("[%s] analysis finished." % (op.fnOut))
 
 
+@click.command()
+@click.option(
+    "-r",
+    required=True,
+    help=
+    "A BED format file specifying the reference regions, which are assumed to exhibit no change between samples.",
+    type=str,
+)
+@click.option(
+    "-o",
+    required=True,
+    help="Output file prefix",
+    type=str,
+)
+@click.option(
+    "-c",
+    required=True,
+    help="The bigWig file for the control sample.",
+    type=str,
+)
+@click.option(
+    "-lc",
+    required=False,
+    help="The label for the reference sample. Default is control.",
+    type=str,
+    default="control",
+)
+@click.option(
+    "-t",
+    required=True,
+    help="The bigWig file for the treatment sample.",
+    type=str,
+)
+@click.option(
+    "-lt",
+    required=False,
+    help="The label for the treatment sample. Default is trt.",
+    type=str,
+    default="trt",
+)
+@click.option(
+    "-ext",
+    required=False,
+    help="To classify background and signal regions, a Gaussian Mixture Model is built using data extended from reference region centers. This parameter specifies the extension size in base pairs (default: 10,000 bp). For broad peaks, like H3K27me3, increase this value to capture enough surrounding regions (e.g., 50,000 bp).",
+    type=int,
+)
+@click.option("-p",
+              default=2,
+              type=int,
+              help="Number of CPUs to finish the job, default is set to 2."
+)
+def paw(r,c,t,o,lc,lt,ext,p=2):
+    """
+    To normalize target sample ChIP-seq, ATAC-seq, or DNase-seq data to a reference sample at base-pair resolution, we assume: 1) background noise levels are similar and can be normalized to zero; and 2) specific regions, such as conserved CTCF sites or transcription start sites (TSS) of genes with unchanged expression, maintain similar signal-to-noise ratios. This normalization aims to account for inter-sample variability. It is crucial that input BigWig files are pre-normalized to Reads Per Million (RPM) before applying this method.
+    
+    Examples:
+
+        1. typical pair-wise comparsion   
+
+            paw.py -r ref.bed -c control.bw -t trt.bw -o test 
+    
+
+        2. replicates alignment 
+
+            paw.py -r peaks.bed -c rep1.bw -t rep2.bw -o test 
+    """
+    #start
+    start = datetime.now()
+    script = os.path.basename(__file__)
+    rPrint(
+        f"{script} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -ext {ext} -p {p}"
+    )
+
+    #finished
+    end = datetime.now()
+    usedTime = end - start
+    vPrint(f"{script} job finished. Used time: {usedTime}")
+
+
+
 if __name__ == "__main__":
-    start_time = datetime.now()
-    main()
-    usedtime = datetime.now() - start_time
-    sys.stderr.write("Process finished. Used CPU time: %s Bye!\n" % usedtime)
+    paw()
