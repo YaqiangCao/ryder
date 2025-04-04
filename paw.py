@@ -88,83 +88,6 @@ def getBinMean(s, bins=100):
     return ns
 
 
-def help():
-    """
-    Create the command line interface for the script.
-    """
-    description = """
-        Normalize target sample ChIP-seq data signal to reference sample at bp
-        level with assumptions of: 1) background noise signal level should be 
-        similar and normalized to 0; 2) there are some regions (shared peaks) 
-        which share similar level of signal intensities. 
-
-        Input bigWigs file should be normalized as RPM (reads per million) first. 
-
-        The normalization may not suitable for the TF ChIP-seq WT vs KO sample. 
-
-        Example:
-        tow.py -br ref.bed -bt tgt.bed -wr ref.bw -wt tgt.bw -o test 
-        """
-    parser = argparse.ArgumentParser(description=description,
-                                     formatter_class=RawTextHelpFormatter)
-    parser.add_argument(
-        "-br",
-        dest="refBed",
-        required=True,
-        type=str,
-        help=
-        "The peaks for reference sample in BED format..\n"\
-    )
-    parser.add_argument(
-        "-bt",
-        dest="tgtBed",
-        required=True,
-        type=str,
-        help=
-        "The peaks for target sample.\n"\
-    )
-    parser.add_argument("-wr",
-                        dest="refBw",
-                        required=True,
-                        type=str,
-                        help="The bigWig file for reference sample.")
-    parser.add_argument("-wt",
-                        dest="tgtBw",
-                        required=True,
-                        type=str,
-                        help="The bigWig file for target sample.")
-    parser.add_argument("-o",
-                        dest="fnOut",
-                        required=True,
-                        type=str,
-                        help="Output prefix.")
-    parser.add_argument(
-        "-ext",
-        dest="ext",
-        required=False,
-        type=int,
-        default=10000,
-        help=
-        "Extension size from peak center to build Gaussian Mixture Model for\n"\
-        "classification of background and signal region. Default is 10000bp.\n"\
-        "For board peaks such as H3K27me3, should increase the parameter to\n"\
-        "include enough nearby regions, such as 50000."
-    )
-    parser.add_argument("-labelr",
-                        dest="refLabel",
-                        required=False,
-                        type=str,
-                        default="ref",
-                        help="The label for reference sample. Default is ref.")
-    parser.add_argument("-labelt",
-                        dest="tgtLabel",
-                        required=False,
-                        type=str,
-                        default="tgt",
-                        help="The label for target sample. Default is tgt.")
-    op = parser.parse_args()
-    return op
-
 
 def readBed(f):
     rs = []
@@ -233,39 +156,27 @@ def checkBgOverlaps(c, s, e, cov, lims):
     return False
 
 
-def getFgBgs(refPeaks, tgtPeaks, ext=10):
+def getFgBgs(refPeaks, exts=[5,10,20]):
     """
     Get the background regions.
-    #coverage, require no overlaps for background regions
     """
     refCov, refLims = buildCov(refPeaks)
-    tgtCov, tgtLims = buildCov(tgtPeaks)
-    coCov, allCov, lims = {}, {}, {}
-    for c in refCov.keys():
-        minv = min(refLims[c][0], tgtLims[c][0])
-        maxv = max(refLims[c][1], tgtLims[c][1])
-        lims[c] = [minv, maxv]
-        a = deepcopy(refCov[c])
-        a.update(deepcopy(tgtCov[c]))
-        allCov[c] = a
-        s = refCov[c].intersection(tgtCov[c])
-        coCov[c] = s
-    fgs = getRegion(coCov)  #shared peaks regions
-    alls = getRegion(allCov)  #all peak regions
+    fgs = getRegion(refCov)  #sorted reference
     bgs = []
-    for r in alls:
+    for r in fgs:
         d = r[2] - r[1]
         c = r[0]
-        s = r[1] - ext * d
-        e = r[2] - ext * d
-        if checkBgOverlaps(c, s, e, allCov, lims):
-            continue
-        bgs.append([c, s, e])
-        s = r[1] + ext * d
-        e = r[2] + ext * d
-        if checkBgOverlaps(c, s, e, allCov, lims):
-            continue
-        bgs.append([c, s, e])
+        for ext in exts:
+            s = r[1] - ext * d
+            e = r[2] - ext * d
+            if checkBgOverlaps(c, s, e, refCov, refLims):
+                continue
+            bgs.append([c, s, e])
+            s = r[1] + ext * d
+            e = r[2] + ext * d
+            if checkBgOverlaps(c, s, e, refCov, refLims):
+                continue
+            bgs.append([c, s, e])
     return fgs, bgs
 
 
@@ -318,15 +229,15 @@ def getQc(fgs,
     ax.plot(x, bgRef, label=refLabel)
     ax.plot(x, bgTgt, label=tgtLabel)
     ax.set_xlabel("bins")
-    ax.set_ylabel("ChIP-seq mean signals, RPM")
-    ax.set_title("background region\nsf(%s->%s):%.3f" %
+    ax.set_ylabel("avg. signals")
+    ax.set_title("background \nsf(%s->%s):%.3f" %
                  (tgtLabel, refLabel, bgfc))
     ax.legend()
     #signal level
     ax = axs[1]
     ax.plot(x, fgRef, label=refLabel)
     ax.plot(x, fgTgt, label=tgtLabel)
-    ax.set_ylabel("ChIP-seq mean signals, RPM")
+    ax.set_ylabel("avg. signals")
     ax.set_xlabel("bins")
     ax.set_title("peak region\nsf(%s->%s):%.3f" % (tgtLabel, refLabel, fgfc))
     ax.legend()
@@ -721,13 +632,14 @@ def main():
     required=False,
     help="To classify background and signal regions, a Gaussian Mixture Model is built using data extended from reference region centers. This parameter specifies the extension size in base pairs (default: 10,000 bp). For broad peaks, like H3K27me3, increase this value to capture enough surrounding regions (e.g., 50,000 bp).",
     type=int,
+    default=10000,
 )
 @click.option("-p",
               default=2,
               type=int,
               help="Number of CPUs to finish the job, default is set to 2."
 )
-def paw(r,c,t,o,lc,lt,ext,p=2):
+def paw(r,c,t,o,lc,lt,ext=100000,p=2):
     """
     To normalize target sample ChIP-seq, ATAC-seq, or DNase-seq data to a reference sample at base-pair resolution, we assume: 1) background noise levels are similar and can be normalized to zero; and 2) specific regions, such as conserved CTCF sites or transcription start sites (TSS) of genes with unchanged expression, maintain similar signal-to-noise ratios. This normalization aims to account for inter-sample variability. It is crucial that input BigWig files are pre-normalized to Reads Per Million (RPM) before applying this method.
     
@@ -745,14 +657,33 @@ def paw(r,c,t,o,lc,lt,ext,p=2):
     #start
     start = datetime.now()
     script = os.path.basename(__file__)
-    rPrint(
+    rprint(
         f"{script} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -ext {ext} -p {p}"
     )
+
+    #step 1 read reference peaks/regions
+    refPeaks = readBed(r)
+    
+    #step 2 generate background region
+    fgs, bgs = getFgBgs(refPeaks)
+    rprint( "[%s] Step 1: reference peaks: %s; background regions: %s" % (o, len(fgs), len(bgs)))
+
+    #step 3 qc for signal to noise ratio and noise level
+    rprint( "[%s] Step 2: initial QC for background noise level and signal-to-noise ratio."%o)
+    fgRef, fgTgt, bgRef, bgTgt = getQc(fgs,
+                                       bgs,
+                                       c,
+                                       t,
+                                       o,
+                                       refLabel=lc,
+                                       tgtLabel=lt)
+    #scaling factor for background region
+    sf = bgRef.mean() / bgTgt.mean()
 
     #finished
     end = datetime.now()
     usedTime = end - start
-    vPrint(f"{script} job finished. Used time: {usedTime}")
+    rprint(f"{script} job finished. Used time: {usedTime}")
 
 
 
