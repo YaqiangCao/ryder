@@ -14,9 +14,7 @@ __email__ = "caoyaqiang0410@gmail.com"
 
 #sys library
 import os
-import time
 import warnings
-from copy import deepcopy
 from datetime import datetime
 
 #3rd library
@@ -35,10 +33,10 @@ import matplotlib as mpl
 mpl.use("pdf")
 import seaborn as sns
 mpl.rcParams["pdf.fonttype"] = 42
-mpl.rcParams["figure.figsize"] = (4, 2.75)
+mpl.rcParams["figure.figsize"] = (3.2, 2.2)
 mpl.rcParams["savefig.transparent"] = True
 mpl.rcParams["savefig.bbox"] = "tight"
-mpl.rcParams["font.size"] = 8.0
+mpl.rcParams["font.size"] = 7.0
 mpl.rcParams["font.sans-serif"] = "Arial"
 mpl.rcParams["savefig.format"] = "pdf"
 import pylab
@@ -77,16 +75,6 @@ def rprint(message):
     print(report)
 
 
-def getBinMean(s, bins=100):
-    """
-    Get the mean of bins for a array.
-    @param s: np.array
-    @param bins: int, how many bins as converted
-    """
-    width = int(len(s) / bins)
-    ns = s[:bins * width].reshape(-1, width).mean(axis=1)
-    return ns
-
 
 
 def readBed(f):
@@ -100,8 +88,40 @@ def readBed(f):
             line[2] = int(line[2])
         except:
             continue
+        if line[2] - line[1] < 100:
+            continue
         rs.append(line[:3])
     return rs
+
+
+def showSig(rs, cf, tf, o, title="", refLabel="ref", tgtLabel="tgt", ext=10000):
+    ext = int(ext/2)
+    x = np.arange(-ext,ext+1)
+    cs = np.zeros( len(x) )
+    ts = np.zeros( len(x) )
+    cfo = pyBigWig.open(cf)
+    tfo = pyBigWig.open(tf)
+    for r in tqdm(rs):
+        chrom = r[0]
+        center = int((r[1] + r[2])/2)
+        sa = cfo.values(chrom, center - ext , center+ext+1)
+        sa = np.nan_to_num(sa)
+        cs += sa
+        sb = tfo.values(chrom, center - ext , center+ext+1)
+        sb = np.nan_to_num(sb)
+        ts += sb
+    cs = cs / len(rs)
+    ts = ts / len(rs)
+    fig, ax = pylab.subplots()
+    ax.plot(x, cs, label=refLabel, color=colors[0])
+    ax.plot(x, ts, label=tgtLabel, color=colors[1])
+    ax.set_ylabel("avg. signal")
+    ax.set_xlabel("distance from reference center")
+    ax.set_title(title)
+    ax.set_xlim([-ext, ext])
+    leg = ax.legend(labelcolor=[colors[0], colors[1]], frameon=False, markerscale=0)
+    pylab.savefig(o+".pdf")
+
 
 
 def buildCov(rs):
@@ -180,33 +200,52 @@ def getFgBgs(refPeaks, exts=[5,10,20]):
     return fgs, bgs
 
 
-def getBwSig(rs, f, bins=100):
+def getBinMean(s, bins=100):
+    """
+    Get the mean of bins for a array.
+    @param s: np.array
+    @param bins: int, how many bins as converted
+    """
+    width = int(len(s) / bins)
+    ns = s[:bins * width].reshape(-1, width).mean(axis=1)
+    return ns
+
+
+def _getBwSig( r, bw, bins=100 ):
+    """
+    Get the signal from bigWig file and get the bin mean.
+    """
+    bwo = pyBigWig.open(bw)
+    try:
+        ns = bwo.values(r[0], r[1], r[2])
+        ns = np.nan_to_num(ns)
+        if len(ns) > bins:
+            ns = getBinMean(ns, bins)
+            return ns
+        else:
+            return np.zeros(bins)
+    except: #fetching data error
+        return np.zeros(bins)
+
+
+def getBwSig(rs, f, bins=100,p=2):
     """
     Get region signal from bigWig file. 
     """
-    bw = pyBigWig.open(f)
-    s = []
-    for r in rs:
-        try:
-            ns = bw.values(r[0], r[1], r[2])
-        except:
-            continue
-        ns = np.nan_to_num(ns)
-        if len(ns) < bins:
-            continue
-        ns = getBinMean(ns, bins)
-        s.append(ns)
+    s = Parallel(n_jobs=p, backend="multiprocessing")( delayed(_getBwSig)( r, f, bins ) for r in rs )
     return np.array(s)
 
+def plotBinSig(ax, x,y1,y2,label1,label2,xlabel, ylabel, title):
+    ax.plot(x, y1, label=label1,color=colors[0])
+    ax.plot(x, y2, label=label2,color=colors[1])
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    leg = ax.legend(labelcolor=[colors[0], colors[1]], frameon=False, markerscale=0)
+    return ax
 
-def getQc(fgs,
-          bgs,
-          refBw,
-          tgtBw,
-          fnOut,
-          refLabel="ref",
-          tgtLabel="tgt",
-          bins=100):
+
+def getQc(fgs, bgs, refBw, tgtBw, fnOut, refLabel="ref", tgtLabel="tgt", bins=100):
     """
     Quality control: 
     1. noise compare
@@ -222,37 +261,25 @@ def getQc(fgs,
     bgTgt = bgTgt.mean(axis=0)
     bgfc = bgRef.mean() / bgTgt.mean()
     fgfc = fgRef.mean() / fgTgt.mean()
+
+    #show the results
     fig, axs = pylab.subplots(1, 3, figsize=(6, 2), sharex=True)
     axs = axs.reshape(-1)
     x = np.arange(bins)
+    #background level
     ax = axs[0]
-    ax.plot(x, bgRef, label=refLabel)
-    ax.plot(x, bgTgt, label=tgtLabel)
-    ax.set_xlabel("bins")
-    ax.set_ylabel("avg. signals")
-    ax.set_title("background \nsf(%s->%s):%.3f" %
-                 (tgtLabel, refLabel, bgfc))
-    ax.legend()
+    plotBinSig(ax, x, bgRef, bgTgt, refLabel, tgtLabel, "bins", "avg. signal", "background\n sf:%.3f"%bgfc)
     #signal level
     ax = axs[1]
-    ax.plot(x, fgRef, label=refLabel)
-    ax.plot(x, fgTgt, label=tgtLabel)
-    ax.set_ylabel("avg. signals")
-    ax.set_xlabel("bins")
-    ax.set_title("peak region\nsf(%s->%s):%.3f" % (tgtLabel, refLabel, fgfc))
-    ax.legend()
+    plotBinSig(ax, x, fgRef, fgTgt, refLabel, tgtLabel, "bins", "avg. signal", "reference region\n sf:%.3f"%fgfc)
     #signal to noise ratio
     refSN = fgRef / bgRef
     tgtSN = fgTgt / bgTgt
     ax = axs[2]
-    ax.plot(x, refSN, label=refLabel)
-    ax.plot(x, tgtSN, label=tgtLabel)
-    ax.set_xlabel("bins")
-    ax.set_ylabel("Signal to noise ratio")
-    ax.legend()
-    ax.set_title("Signal to noise")
+    snfc = refSN.mean()/tgtSN.mean()
+    plotBinSig(ax, x, refSN, tgtSN, refLabel, tgtLabel, "bins","S2N ratio", "signal to noise ratio\n sf:%.3f"%snfc )
     pylab.tight_layout()
-    pylab.savefig(fnOut + "_1_qc.pdf")
+    pylab.savefig(fnOut + "_2_qc.pdf")
     return fgRef, fgTgt, bgRef, bgTgt
 
 
@@ -516,44 +543,6 @@ def normTgtBw(bw, gmm, gmmCs, noise, sf, sf2, fnOut):
 
 
 def main():
-    op = help()
-
-    #step 0 parameters check
-    report = "python tow.py -br {refBed} -bt {tgtBed} -wr {refBw} -wt {tgtBw} -o {fnOut} -ext {ext} -labelr {refLabel} -labelt {tgtLabel}".format(
-        refBed=op.refBed,
-        tgtBed=op.tgtBed,
-        refBw=op.refBw,
-        tgtBw=op.tgtBw,
-        fnOut=op.fnOut,
-        ext=op.ext,
-        refLabel=op.refLabel,
-        tgtLabel=op.tgtLabel)
-    logger.info(report)
-
-    #step 1 read bed
-    refPeaks = readBed(op.refBed)
-    tgtPeaks = readBed(op.tgtBed)
-
-    #step 2 generate background regions
-    fgs, bgs = getFgBgs(refPeaks, tgtPeaks)
-    logger.info(
-        "[%s] Step0: ref sample peaks: %s; tgt sample peaks: %s; shared: %s; background regions: %s"
-        % (op.fnOut, len(refPeaks), len(tgtPeaks), len(fgs), len(bgs)))
-
-    #step 3 qc for signal to noise ratio and noise level
-    logger.info(
-        "[%s] Step1: Initial QC for background noise level and signal-to-noise ratio."
-        % (op.fnOut))
-    fgRef, fgTgt, bgRef, bgTgt = getQc(fgs,
-                                       bgs,
-                                       op.refBw,
-                                       op.tgtBw,
-                                       op.fnOut,
-                                       refLabel=op.refLabel,
-                                       tgtLabel=op.tgtLabel)
-    #scaling factor for background region
-    sf = bgRef.mean() / bgTgt.mean()
-
     #step 4 estimate sample-wise fitting
     #scaling factor for singla region
     logger.info("[%s] Step2: Estimating scaling factor for signal regions." %
@@ -661,24 +650,34 @@ def paw(r,c,t,o,lc,lt,ext=100000,p=2):
         f"{script} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -ext {ext} -p {p}"
     )
 
+    #step 0 parameters check 
+    for f in [r, c,t]:
+        if not os.path.isfile(f):
+            rprint(f"ERROR! Input file {f} not exits. Return!")
+    od = os.path.dirname(o)
+    if not os.path.exists(od):
+        os.makedirs(od,exist_ok=True)
+
     #step 1 read reference peaks/regions
     refPeaks = readBed(r)
     
     #step 2 generate background region
     fgs, bgs = getFgBgs(refPeaks)
     rprint( "[%s] Step 1: reference peaks: %s; background regions: %s" % (o, len(fgs), len(bgs)))
+    
+    #step 3 show the orignal signal around reference centers 
+    rprint( "[%s] Step 2: check original signals"%o)
+    showSig(fgs, c, t, o+"_1_orig", title="original signal", refLabel=lc, tgtLabel=lt, ext=ext )
 
-    #step 3 qc for signal to noise ratio and noise level
-    rprint( "[%s] Step 2: initial QC for background noise level and signal-to-noise ratio."%o)
-    fgRef, fgTgt, bgRef, bgTgt = getQc(fgs,
-                                       bgs,
-                                       c,
-                                       t,
-                                       o,
-                                       refLabel=lc,
-                                       tgtLabel=lt)
+    #step 4 qc for signal to noise ratio and noise level
+    rprint( "[%s] Step 3: initial QC for background noise level and signal-to-noise ratio."%o)
+    fgRef, fgTgt, bgRef, bgTgt = getQc(fgs, bgs, c, t, o, refLabel=lc, tgtLabel=lt)
     #scaling factor for background region
     sf = bgRef.mean() / bgTgt.mean()
+    rprint( "[%s] Step 4: estimated background scaling factor: %.3f."%(o,sf))
+
+    #step 5  estimate sample-wise fitting parameters, scaling factor for signal regions
+    rprint( "[%s] Step 5: estimate signal region fitting parameters "%(o))
 
     #finished
     end = datetime.now()
