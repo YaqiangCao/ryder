@@ -13,6 +13,7 @@ __email__ = "caoyaqiang0410@gmail.com"
 
 #sys library
 import os
+import random
 import warnings
 from datetime import datetime
 
@@ -381,6 +382,8 @@ def estFit(fgs,
         ax.set_title(
             "after correction M~A PCC:%.3f\n(%s)=%.3f(%s)%.3f" %
             (m.corr(a), tgtLabel, alpha, tgtLabel, beta))
+
+    ax.axhline(0, color="gray", linestyle="--")
     ax.set_xlabel("A, (log2(%s)+log2(%s))/2)" % (refLabel, tgtLabel))
     ax.set_ylabel("M, log2(%s)-log2(%s)" % (tgtLabel, refLabel))
 
@@ -468,42 +471,54 @@ def trainGmm(fgs,
     """
     Train GMM to classify background regions or signal regions
     """
-    fig, axs = pylab.subplots()
-    axs = axs.reshape(-1)
-    tgtGmm, tgtCs = getGmm(fgs, bgs, tgtBw, axs[1], tgtLabel,ext)
-    pylab.tight_layout()
+    fig, ax = pylab.subplots()
+    tgtGmm, tgtCs = getGmm(fgs, bgs, tgtBw, ax, tgtLabel,ext)
+    #pylab.tight_layout()
     pylab.savefig(fnOut + "_4_GMM.pdf")
     return tgtGmm, tgtCs
 
 
+def _norm(bw,chrom, gmm, gmmCs, noise,sf, sf2, fout):
+    bwi = pyBigWig.open(bw)
+    ts = bwi.intervals(chrom)
+    with open(fout,"w") as fo:
+        for s in ts:
+            v = s[-1]
+            if v == 0:
+                continue
+            #gmm was trained with log2 data
+            t = gmmCs[gmm.predict([[np.log2(v)]])[0]]
+            if t == 0: # noise
+                v = v * sf
+            else: #signal
+                v = 2**(np.log2(v) * sf2[0] + sf2[1])
+            start = s[0]
+            end = s[1]
+            line = f"{chrom}\t{start}\t{end}\t{v}\n"
+            fo.write(line)
+    bwi.close()
 
-def normTgtBw(bw, gmm, gmmCs, noise, sf, sf2, fnOut):
+
+
+def normTgtBw(bw, gmm, gmmCs, noise, sf, sf2, fnOut,p=2,csf=""):
     """
     Normalize target sample bigWig file.
     """
+    td = "/".join( fnOut.split("/")[:-1] ) + "/" + str(random.random())
+    os.makedirs(td)
     bwi = pyBigWig.open(bw)
-    with pyBigWig.open(fnOut + ".bw", "w") as fo:
-        for chrom, size in bwi.chroms().items():
-            ts = bwi.intervals(chrom)
-            ss = []
-            es = []
-            vs = []
-            for s in ts:
-                v = s[-1]
-                if v == 0:
-                    continue
-                #gmm was trained with log2 data
-                t = gmmCs[gmm.predict([[np.log2(v)]])[0]]
-                if t == 0: # noise
-                    v = v * sf
-                else: #signal
-                    v = 2**(np.log2(v) * sf2[0] + sf2[1])
-                ss.append( s[0] )
-                es.append( s[1] )
-                vs.append( v )
-            fo.addEntries([chrom]*len(ss), ss, ends=es, values=vs)
+    chroms = bwi.chroms().keys()
     bwi.close()
+    Parallel(n_jobs=p, backend="multiprocessing")(delayed(_norm)(bw,chrom, gmm, gmmCs, noise, sf, sf2, td+"/"+chrom+".bdg") for chrom in tqdm(chroms))
+    fs = glob(td+"/*.bdg")
+    fs.sort()
+    c1 = "cat %s > %s.bdg"%( " ".join(fs), fnOut )
+    c2 = f"bedGraphToBigWig {fnOut}.bdg {csf} {fnOut}.bw"
+    c3 = f"rm -fr {td}"
+    for c in [c1,c2,c3]:
+        os.system(c)
 
+ 
 
 
 @click.command()
@@ -554,13 +569,20 @@ def normTgtBw(bw, gmm, gmmCs, noise, sf, sf2, fnOut):
     type=int,
     default=10000,
 )
+@click.option(
+    "-csf",
+    required=True,
+    help=
+    "Chromosome size file. Can be obtained through the command of fetchChromSizes. If given, will convert the output file to bigWig.",
+    type=str,
+)
 @click.option("-p",
               default=2,
               type=int,
               help="Number of CPUs to finish the job, default is set to 2.")
-def paw(r, c, t, o, lc, lt, ext=10000, p=2):
+def paw(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
     """
-    To normalize target sample ChIP-seq, ATAC-seq, or DNase-seq data to a reference sample at base-pair resolution, we assume: 1) background noise levels are similar and can be normalized to zero; and 2) specific regions, such as conserved CTCF sites or transcription start sites (TSS) of genes with unchanged expression, maintain similar signal-to-noise ratios. This normalization aims to account for inter-sample variability. It is crucial that input BigWig files are pre-normalized to Reads Per Million (RPM) before applying this method.
+    To normalize target sample ChIP-seq, ATAC-seq, or DNase-seq data to a reference sample at base-pair resolution, we assume: 1) background noise levels are similar; and 2) specific regions, such as conserved CTCF sites or transcription start sites (TSS) of genes with unchanged expression, maintain similar signal-to-noise ratios. This normalization aims to account for inter-sample variability. It is crucial that input BigWig files are pre-normalized to Reads Per Million (RPM) before applying this method.
     
     Examples:
 
@@ -577,11 +599,11 @@ def paw(r, c, t, o, lc, lt, ext=10000, p=2):
     start = datetime.now()
     script = os.path.basename(__file__)
     rprint(
-        f"{script} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -ext {ext} -p {p}"
+        f"{script} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -ext {ext} -p {p} -csf {csf}"
     )
 
     #step 0 parameters check
-    for f in [r, c, t]:
+    for f in [r, c, t,csf]:
         if not os.path.isfile(f):
             rprint(f"ERROR! Input file {f} not exits. Return!")
     od = os.path.dirname(o)
@@ -631,16 +653,16 @@ def paw(r, c, t, o, lc, lt, ext=10000, p=2):
     
     #step 6 train GMM with fg and bg data for classifiy fg and bg regions
     rprint(f"[{o}] Step 5: train Gaussian Mixture Model for classfication of background and signal regions")
-    tgtGmm, tgtCs = trainGmm(fgs, bgs, c, t, o, lc, lt,ext=ext)
+    tgtGmm, tgtCs = trainGmm(fgs, bgs, t, o, lt,ext=ext)
     
     #step 7 performe normalization to tgt bigwig files
     noiseTgt = bgTgt.mean()
     rprint(f"[{o}] Step 6: normalize target sample." )
-    normTgtBw(t, tgtGmm, tgtCs, noiseTgt, sf, [alpha,beta], o + "_" + lt)
+    normTgtBw(t, tgtGmm, tgtCs, noiseTgt, sf, [alpha,beta], o + "_" + lt,p=p,csf=csf)
  
     #step 8 show the corrected signal around reference centers
     rprint("[%s] Step 7: check corrected signals" % o)
-    showSig(fgs, c, o +"_"+lt+".bw", o+"_5_corr", title="correct signal", refLabel=lc, tgtLabel=lt, ext=ext )
+    showSig(fgs, c, o+"_"+lt+".bw", o+"_5_corr", title="correct signal", refLabel=lc, tgtLabel=lt, ext=ext )
 
     #finished
     end = datetime.now()
