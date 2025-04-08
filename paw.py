@@ -329,8 +329,10 @@ def estFit(fgs,
     axs = axs.reshape(-1)
 
     #signal conversion
+    """
     refS = refS - bgRef.mean()
     tgtS = (tgtS - bgTgt.mean()) * sf
+    """
     s = refS[refS > 0].index
     s = tgtS[s]
     s = s[s > 0].index
@@ -411,7 +413,7 @@ def corrSig(ss, noise=None, sf=None, sf2=None, trim=False):
 
 
 
-def getGmm(fg, bg, bw, ax, title, ext=5000, bins=100):
+def getGmm(fg, bg, bw, ax, title, ext=5000, bins=10):
     """
     Train one GMM. Data should log2 first
     """
@@ -434,8 +436,8 @@ def getGmm(fg, bg, bw, ax, title, ext=5000, bins=100):
     mixS = np.log2(mixS[mixS > 0])
     #plot
     sns.kdeplot(bgS, label="background", fill=False, ax=ax)
-    sns.kdeplot(fgS, label="peaks", fill=False, ax=ax)
-    sns.kdeplot(mixS, label="peaks nearby", fill=False, ax=ax)
+    sns.kdeplot(fgS, label="reference region", fill=False, ax=ax)
+    sns.kdeplot(mixS, label="reference region nearby", fill=False, ax=ax)
     #train gmm
     gmm = GMM(n_components=2,
               covariance_type="full",
@@ -445,7 +447,7 @@ def getGmm(fg, bg, bw, ax, title, ext=5000, bins=100):
     ms = gmm.means_.reshape(-1)
     ws = gmm.weights_
     ax.legend()
-    ax.set_xlabel("log2(RPM)")
+    ax.set_xlabel("log2(signal)")
     ax.set_title(title + "\n" + "means:%.3f, %.3f\nweights:%.3f, %.3f" %
                  (ms[0], ms[1], ws[0], ws[1]))
     #correct gmm predict targets, 0 as noise , 1 as signal
@@ -458,50 +460,21 @@ def getGmm(fg, bg, bw, ax, title, ext=5000, bins=100):
 
 def trainGmm(fgs,
              bgs,
-             refBw,
              tgtBw,
              fnOut,
-             refLabel="ref",
              tgtLabel="tgt",
              ext=5000,
              ):
     """
     Train GMM to classify background regions or signal regions
     """
-    fig, axs = pylab.subplots(1, 2, figsize=(6, 3), sharex=True, sharey=True)
+    fig, axs = pylab.subplots()
     axs = axs.reshape(-1)
-
-    refGmm, refCs = getGmm(fgs, bgs, refBw, axs[0], refLabel,ext)
     tgtGmm, tgtCs = getGmm(fgs, bgs, tgtBw, axs[1], tgtLabel,ext)
-
     pylab.tight_layout()
     pylab.savefig(fnOut + "_4_GMM.pdf")
-    return refGmm, refCs, tgtGmm, tgtCs
+    return tgtGmm, tgtCs
 
-
-def normRefBw(bw, gmm, gmmCs, noise, fnOut):
-    """
-    Normalize reference bigWig files. Only remove background noise. 
-    """
-    bwi = pyBigWig.open(bw)
-    with open(fnOut + ".bdg", "w") as fo:
-        for chrom, size in bwi.chroms().items():
-            #get the singal for whole chromosome
-            ss = bwi.intervals(chrom)
-            for s in ss:
-                v = s[-1]
-                if v == 0:
-                    continue
-                #gmm was trained with log2 data
-                t = gmmCs[gmm.predict([[np.log2(v)]])[0]]
-                if t == 0:
-                    continue
-                v = v - noise
-                if v < 0:
-                    continue
-                line = [chrom, s[0], s[1], "%.5f" % v]
-                fo.write("\t".join(list(map(str, line))) + "\n")
-    bwi.close()
 
 
 def normTgtBw(bw, gmm, gmmCs, noise, sf, sf2, fnOut):
@@ -509,51 +482,28 @@ def normTgtBw(bw, gmm, gmmCs, noise, sf, sf2, fnOut):
     Normalize target sample bigWig file.
     """
     bwi = pyBigWig.open(bw)
-    with open(fnOut + ".bdg", "w") as fo:
+    with pyBigWig.open(fnOut + ".bw", "w") as fo:
         for chrom, size in bwi.chroms().items():
-            #add header
-            ss = bwi.intervals(chrom)
-            for s in ss:
+            ts = bwi.intervals(chrom)
+            ss = []
+            es = []
+            vs = []
+            for s in ts:
                 v = s[-1]
                 if v == 0:
                     continue
                 #gmm was trained with log2 data
                 t = gmmCs[gmm.predict([[np.log2(v)]])[0]]
-                if t == 0:
-                    continue
-                v = v - noise
-                if v < 0:
-                    continue
-                #first scaling factor, obtained with not log2 data
-                v = v * sf
-                if t == 1:  #signal, further normalization
+                if t == 0: # noise
+                    v = v * sf
+                else: #signal
                     v = 2**(np.log2(v) * sf2[0] + sf2[1])
-                line = [chrom, s[0], s[1], "%.5f" % v]
-                fo.write("\t".join(list(map(str, line))) + "\n")
+                ss.append( s[0] )
+                es.append( s[1] )
+                vs.append( v )
+            fo.addEntries([chrom]*len(ss), ss, ends=es, values=vs)
     bwi.close()
 
-
-def main():
-    #step 6 train GMM with fg and bg data for classifiy fg and bg regions
-    logger.info(
-        "[%s] Step4: Building Gaussian Mixture Model for classfication of background and signal regions"
-        % (op.fnOut))
-    refGmm, refCs, tgtGmm, tgtCs = trainGmm(refPeaks, tgtPeaks, bgs, op.refBw,
-                                            op.tgtBw, op.fnOut, op.refLabel,
-                                            op.tgtLabel)
-
-    #step 7 performe normalization to bigWig files
-    noiseRef = bgRef.mean()
-    noiseTgt = bgTgt.mean()
-    logger.info(
-        "[%s] Step5: Normaling reference sample with background noise." %
-        (op.fnOut))
-    normRefBw(op.refBw, refGmm, refCs, noiseRef, op.fnOut + "_" + op.refLabel)
-    logger.info("[%s] Step6: Normaling target sample." % (op.fnOut))
-    normTgtBw(op.tgtBw, tgtGmm, tgtCs, noiseTgt, sf, sf2,
-              op.fnOut + "_" + op.tgtLabel)
-
-    logger.info("[%s] analysis finished." % (op.fnOut))
 
 
 @click.command()
@@ -608,7 +558,7 @@ def main():
               default=2,
               type=int,
               help="Number of CPUs to finish the job, default is set to 2.")
-def paw(r, c, t, o, lc, lt, ext=100000, p=2):
+def paw(r, c, t, o, lc, lt, ext=10000, p=2):
     """
     To normalize target sample ChIP-seq, ATAC-seq, or DNase-seq data to a reference sample at base-pair resolution, we assume: 1) background noise levels are similar and can be normalized to zero; and 2) specific regions, such as conserved CTCF sites or transcription start sites (TSS) of genes with unchanged expression, maintain similar signal-to-noise ratios. This normalization aims to account for inter-sample variability. It is crucial that input BigWig files are pre-normalized to Reads Per Million (RPM) before applying this method.
     
@@ -675,18 +625,22 @@ def paw(r, c, t, o, lc, lt, ext=100000, p=2):
     rprint(f"[{o}] Step 4: estimate signal region fitting parameters ")
     alpha, beta = estFit(fgs, c, t, bgRef, bgTgt, sf, o, lc, lt)
     if beta > 0:
-        rprint(f"[o] Step 4: estimated linear fitting: log2({lt})={alpha:.3f}log2({lt}) + {beta:.3f}")
+        rprint(f"[{o}] Step 4: estimated linear fitting: log2({lt})={alpha:.3f}log2({lt}) + {beta:.3f}")
     else:
-        rprint(f"[o] Step 4: estimated linear fitting: log2({lt})={alpha:.3f}log2({lt}) {beta:.3f}")
+        rprint(f"[{o}] Step 4: estimated linear fitting: log2({lt})={alpha:.3f}log2({lt}) {beta:.3f}")
     
     #step 6 train GMM with fg and bg data for classifiy fg and bg regions
     rprint(f"[{o}] Step 5: train Gaussian Mixture Model for classfication of background and signal regions")
-    refGmm, refCs, tgtGmm, tgtCs = trainGmm(fgs, bgs, c, t, o, lc, lt,ext=ext)
-
-
-    #step 3 show the corrected signal around reference centers
-    rprint("[%s] Step : check corrected signals" % o)
-    #showSig(fgs, c, t, o+"_1_orig", title="original signal", refLabel=lc, tgtLabel=lt, ext=ext )
+    tgtGmm, tgtCs = trainGmm(fgs, bgs, c, t, o, lc, lt,ext=ext)
+    
+    #step 7 performe normalization to tgt bigwig files
+    noiseTgt = bgTgt.mean()
+    rprint(f"[{o}] Step 6: normalize target sample." )
+    normTgtBw(t, tgtGmm, tgtCs, noiseTgt, sf, [alpha,beta], o + "_" + lt)
+ 
+    #step 8 show the corrected signal around reference centers
+    rprint("[%s] Step 7: check corrected signals" % o)
+    showSig(fgs, c, o +"_"+lt+".bw", o+"_5_corr", title="correct signal", refLabel=lc, tgtLabel=lt, ext=ext )
 
     #finished
     end = datetime.now()
