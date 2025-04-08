@@ -23,3 +23,7 @@ pyBigWig
 scikit-learn
 ```
 
+Linux command line tools:
+```
+bedGraphToBigWig
+```
