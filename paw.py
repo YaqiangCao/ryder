@@ -3,7 +3,8 @@
 """
 PAW algorithm for cross-sample ChIP-seq/DNase-seq/ATAC-seq normalization with internal control. 
 
-2025-04-04: 
+2025-04-04: init
+2025-04-09: revised and basically finished
 """
 
 __author__ = "CAO Yaqiang"
@@ -351,17 +352,17 @@ def estFit(fgs,
     ax.legend()
     ax.set_xlabel("log2(signal)")
     ax.set_title("signal distribution")
-    
+
     #plot signal linear fitting
     ax = axs[1]
-    ax.scatter( refS, tgtS, s=0.1 )
+    ax.scatter(refS, tgtS, s=0.1)
     _m = tgtS - refS
-    _a = (refS+tgtS)/2
+    _a = (refS + tgtS) / 2
     _pcc = _m.corr(_a)
     s = np.min([np.min(refS), np.min(tgtS)])
     e = np.max([np.max(refS), np.max(tgtS)])
     ax.plot([s, e], [s, e], color="gray", linestyle="--")
-    ax.set_title( f"before correction \n M~A PCC:{_pcc:.3f}" )
+    ax.set_title(f"before correction \n M~A PCC:{_pcc:.3f}")
     ax.set_xlabel(refLabel)
     ax.set_ylabel(tgtLabel)
 
@@ -376,13 +377,11 @@ def estFit(fgs,
     a = (refS + tgtSc) / 2
     ax.scatter(a, m, s=0.1)
     if beta > 0:
-        ax.set_title(
-            "after correction M~A PCC:%.3f\n%s=%.3f%s+%.3f" %
-            (m.corr(a), tgtLabel, alpha, tgtLabel, beta))
+        ax.set_title("after correction M~A PCC:%.3f\n%s=%.3f%s+%.3f" %
+                     (m.corr(a), tgtLabel, alpha, tgtLabel, beta))
     else:
-        ax.set_title(
-            "after correction M~A PCC:%.3f\n(%s)=%.3f(%s)%.3f" %
-            (m.corr(a), tgtLabel, alpha, tgtLabel, beta))
+        ax.set_title("after correction M~A PCC:%.3f\n(%s)=%.3f(%s)%.3f" %
+                     (m.corr(a), tgtLabel, alpha, tgtLabel, beta))
 
     ax.axhline(0, color="gray", linestyle="--")
     ax.set_xlabel("A, (log2(%s)+log2(%s))/2)" % (refLabel, tgtLabel))
@@ -414,7 +413,6 @@ def corrSig(ss, noise=None, sf=None, sf2=None, trim=False):
             t = 2**(np.log2(t) * sf2[0] + sf2[1])
         ns.append(t)
     return pd.DataFrame(ns)
-
 
 
 def getGmm(fg, bg, bw, ax, title, ext=5000, bins=10):
@@ -462,36 +460,37 @@ def getGmm(fg, bg, bw, ax, title, ext=5000, bins=10):
     return gmm, cs
 
 
-def trainGmm(fgs,
-             bgs,
-             tgtBw,
-             fnOut,
-             tgtLabel="tgt",
-             ext=5000,
-             ):
+def trainGmm(
+    fgs,
+    bgs,
+    tgtBw,
+    fnOut,
+    tgtLabel="tgt",
+    ext=5000,
+):
     """
     Train GMM to classify background regions or signal regions
     """
     fig, ax = pylab.subplots()
-    tgtGmm, tgtCs = getGmm(fgs, bgs, tgtBw, ax, tgtLabel,ext)
+    tgtGmm, tgtCs = getGmm(fgs, bgs, tgtBw, ax, tgtLabel, ext)
     #pylab.tight_layout()
     pylab.savefig(fnOut + "_4_GMM.pdf")
     return tgtGmm, tgtCs
 
 
-def _norm(bw,chrom, gmm, gmmCs, noise,sf, sf2, fout):
+def _norm(bw, chrom, gmm, gmmCs, noise, sf, sf2, fout):
     bwi = pyBigWig.open(bw)
     ts = bwi.intervals(chrom)
-    with open(fout,"w") as fo:
+    with open(fout, "w") as fo:
         for s in ts:
             v = s[-1]
             if v == 0:
                 continue
             #gmm was trained with log2 data
             t = gmmCs[gmm.predict([[np.log2(v)]])[0]]
-            if t == 0: # noise
+            if t == 0:  # noise
                 v = v * sf
-            else: #signal
+            else:  #signal
                 v = 2**(np.log2(v) * sf2[0] + sf2[1])
             start = s[0]
             end = s[1]
@@ -500,26 +499,25 @@ def _norm(bw,chrom, gmm, gmmCs, noise,sf, sf2, fout):
     bwi.close()
 
 
-
-def normTgtBw(bw, gmm, gmmCs, noise, sf, sf2, fnOut,p=2,csf=""):
+def normTgtBw(bw, gmm, gmmCs, noise, sf, sf2, fnOut, p=2, csf=""):
     """
     Normalize target sample bigWig file.
     """
-    td = "/".join( fnOut.split("/")[:-1] ) + "/" + str(random.random())
+    td = "/".join(fnOut.split("/")[:-1]) + "/" + str(random.random())
     os.makedirs(td)
     bwi = pyBigWig.open(bw)
     chroms = bwi.chroms().keys()
     bwi.close()
-    Parallel(n_jobs=p, backend="multiprocessing")(delayed(_norm)(bw,chrom, gmm, gmmCs, noise, sf, sf2, td+"/"+chrom+".bdg") for chrom in tqdm(chroms))
-    fs = glob(td+"/*.bdg")
+    Parallel(n_jobs=p, backend="multiprocessing")(
+        delayed(_norm)(bw, chrom, gmm, gmmCs, noise, sf, sf2, td + "/" +
+                       chrom + ".bdg") for chrom in tqdm(chroms))
+    fs = glob(td + "/*.bdg")
     fs.sort()
-    c1 = "cat %s > %s.bdg"%( " ".join(fs), fnOut )
+    c1 = "cat %s > %s.bdg" % (" ".join(fs), fnOut)
     c2 = f"bedGraphToBigWig {fnOut}.bdg {csf} {fnOut}.bw"
     c3 = f"rm -fr {td}"
-    for c in [c1,c2,c3]:
+    for c in [c1, c2, c3]:
         os.system(c)
-
- 
 
 
 @click.command()
@@ -604,7 +602,7 @@ def paw(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
     )
 
     #step 0 parameters check
-    for f in [r, c, t,csf]:
+    for f in [r, c, t, csf]:
         if not os.path.isfile(f):
             rprint(f"ERROR! Input file {f} not exits. Return!")
     od = os.path.dirname(o)
@@ -620,7 +618,7 @@ def paw(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
            (o, len(fgs), len(bgs)))
 
     #step 3 show the orignal signal around reference centers
-    rprint(f"[{o}] Step 2: check original signals" )
+    rprint(f"[{o}] Step 2: check original signals")
     showSig(fgs,
             c,
             t,
@@ -632,7 +630,8 @@ def paw(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
 
     #step 4 qc for signal to noise ratio and noise level
     rprint(
-        f"[{o}] Step 3: initial QC for background noise level and signal-to-noise ratio.")
+        f"[{o}] Step 3: initial QC for background noise level and signal-to-noise ratio."
+    )
     fgRef, fgTgt, bgRef, bgTgt = getQc(fgs,
                                        bgs,
                                        c,
@@ -648,28 +647,47 @@ def paw(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
     rprint(f"[{o}] Step 4: estimate signal region fitting parameters ")
     alpha, beta = estFit(fgs, c, t, bgRef, bgTgt, sf, o, lc, lt)
     if beta > 0:
-        rprint(f"[{o}] Step 4: estimated linear fitting for signal region: log2({lt})={alpha:.3f}log2({lt}) + {beta:.3f}")
+        rprint(
+            f"[{o}] Step 4: estimated linear fitting for signal region: log2({lt})={alpha:.3f}log2({lt}) + {beta:.3f}"
+        )
     else:
-        rprint(f"[{o}] Step 4: estimated linear fitting for signal region: log2({lt})={alpha:.3f}log2({lt}) {beta:.3f}")
-    
+        rprint(
+            f"[{o}] Step 4: estimated linear fitting for signal region: log2({lt})={alpha:.3f}log2({lt}) {beta:.3f}"
+        )
+
     #step 6 train GMM with fg and bg data for classifiy fg and bg regions
-    rprint(f"[{o}] Step 5: train Gaussian Mixture Model for classfication of background and signal regions")
-    tgtGmm, tgtCs = trainGmm(fgs, bgs, t, o, lt,ext=ext)
-    
+    rprint(
+        f"[{o}] Step 5: train Gaussian Mixture Model for classfication of background and signal regions"
+    )
+    tgtGmm, tgtCs = trainGmm(fgs, bgs, t, o, lt, ext=ext)
+
     #step 7 performe normalization to tgt bigwig files
     noiseTgt = bgTgt.mean()
-    rprint(f"[{o}] Step 6: normalize target sample bigWig file." )
-    normTgtBw(t, tgtGmm, tgtCs, noiseTgt, sf, [alpha,beta], o + "_" + lt,p=p,csf=csf)
- 
+    rprint(f"[{o}] Step 6: normalize target sample bigWig file.")
+    normTgtBw(t,
+              tgtGmm,
+              tgtCs,
+              noiseTgt,
+              sf, [alpha, beta],
+              o + "_" + lt,
+              p=p,
+              csf=csf)
+
     #step 8 show the corrected signal around reference centers
     rprint(f"[{o}] Step 7: check corrected signals")
-    showSig(fgs, c, o+"_"+lt+".bw", o+"_5_corr", title="correct signal", refLabel=lc, tgtLabel=lt, ext=ext )
+    showSig(fgs,
+            c,
+            o + "_" + lt + ".bw",
+            o + "_5_corr",
+            title="correct signal",
+            refLabel=lc,
+            tgtLabel=lt,
+            ext=ext)
 
     #finished
     end = datetime.now()
     usedTime = end - start
     rprint(f"{script} job finished. Used time: {usedTime}")
-
 
 
 if __name__ == "__main__":
