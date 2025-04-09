@@ -15,6 +15,7 @@ __email__ = "caoyaqiang0410@gmail.com"
 import os
 import random
 import warnings
+from glob import glob
 from datetime import datetime
 
 #3rd library
@@ -661,13 +662,14 @@ def paw(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
     normTgtBw(t, tgtGmm, tgtCs, noiseTgt, sf, [alpha,beta], o + "_" + lt,p=p,csf=csf)
  
     #step 8 show the corrected signal around reference centers
-    rprint("[%s] Step 7: check corrected signals" % o)
+    rprint(f"[{o}] Step 7: check corrected signals")
     showSig(fgs, c, o+"_"+lt+".bw", o+"_5_corr", title="correct signal", refLabel=lc, tgtLabel=lt, ext=ext )
 
     #finished
     end = datetime.now()
     usedTime = end - start
     rprint(f"{script} job finished. Used time: {usedTime}")
+
 
 
 if __name__ == "__main__":
