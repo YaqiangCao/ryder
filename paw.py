@@ -648,9 +648,9 @@ def paw(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
     rprint(f"[{o}] Step 4: estimate signal region fitting parameters ")
     alpha, beta = estFit(fgs, c, t, bgRef, bgTgt, sf, o, lc, lt)
     if beta > 0:
-        rprint(f"[{o}] Step 4: estimated linear fitting: log2({lt})={alpha:.3f}log2({lt}) + {beta:.3f}")
+        rprint(f"[{o}] Step 4: estimated linear fitting for signal region: log2({lt})={alpha:.3f}log2({lt}) + {beta:.3f}")
     else:
-        rprint(f"[{o}] Step 4: estimated linear fitting: log2({lt})={alpha:.3f}log2({lt}) {beta:.3f}")
+        rprint(f"[{o}] Step 4: estimated linear fitting for signal region: log2({lt})={alpha:.3f}log2({lt}) {beta:.3f}")
     
     #step 6 train GMM with fg and bg data for classifiy fg and bg regions
     rprint(f"[{o}] Step 5: train Gaussian Mixture Model for classfication of background and signal regions")
@@ -658,7 +658,7 @@ def paw(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
     
     #step 7 performe normalization to tgt bigwig files
     noiseTgt = bgTgt.mean()
-    rprint(f"[{o}] Step 6: normalize target sample." )
+    rprint(f"[{o}] Step 6: normalize target sample bigWig file." )
     normTgtBw(t, tgtGmm, tgtCs, noiseTgt, sf, [alpha,beta], o + "_" + lt,p=p,csf=csf)
  
     #step 8 show the corrected signal around reference centers
