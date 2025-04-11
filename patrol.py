@@ -15,7 +15,6 @@ import os
 import warnings
 from datetime import datetime
 
-
 #3rd
 import click
 import pyBigWig
@@ -30,8 +29,10 @@ from joblib import Parallel, delayed
 warnings.filterwarnings("ignore")
 #plotting setting
 import matplotlib as mpl
+
 mpl.use("pdf")
 import seaborn as sns
+
 mpl.rcParams["pdf.fonttype"] = 42
 mpl.rcParams["figure.figsize"] = (3.2, 2.2)
 mpl.rcParams["savefig.transparent"] = True
@@ -63,8 +64,6 @@ colors = [
     (0.7019607843137254, 0.8705882352941177, 0.4117647058823529),
     (0.9882352941176471, 0.803921568627451, 0.8980392156862745),
 ]
-
-
 
 
 def rprint(message):
@@ -173,8 +172,7 @@ def getFgBgs(refPeaks, exts=[10]):
     return fgs, bgs
 
 
-
-def quant(rs,bgs,bwf):
+def quant(rs, bgs, bwf):
     """
     Quantify genomic features from bigWig file. 
 
@@ -189,7 +187,7 @@ def quant(rs,bgs,bwf):
         end = r[2]
         ns = bwo.values(chrom, start, end)
         ns = np.nan_to_num(ns)
-        noise.append( np.sum(ns)/len( ns ) )
+        noise.append(np.sum(ns) / len(ns))
     noise = np.mean(noise)
     s = {}
     for r in tqdm(rs):
@@ -199,14 +197,13 @@ def quant(rs,bgs,bwf):
         rid = f"{chrom}:{start}-{end}"
         ns = bwo.values(chrom, start, end)
         ns = np.nan_to_num(ns)
-        ns = np.sum(ns)/len(ns)
+        ns = np.sum(ns) / len(ns)
         if ns == 0:
             ns = noise
-        s[ rid ] = ns
+        s[rid] = ns
     bwo.close()
     s = pd.Series(s)
-    return s
-
+    return s, noise
 
 
 def mahalanobis(mat):
@@ -267,6 +264,30 @@ def twoPassesMDTest(data, pcut=0.01):
     return dis, ps
 
 
+def showMA( m, a,lc, lt, ps,o, noise, pcut=0.01):
+    """
+    Show MA plots.
+    """
+    fig, ax = pylab.subplots()
+    ax.scatter(a, m, s=0.5, color="gray", alpha=0.6, label="total %s regions" % len(a))
+    nps = ps[ps<=pcut].index
+    ma = a[nps]  
+    ma = ma[ma>noise].index
+    ms = m[ma]
+    trs = ms[ms>0].index
+    crs = ms[ms<0].index
+    ax.scatter(a[crs], m[crs], s=1, color=colors[0], alpha=0.8, label="%s %s regions" % (len(crs), lc ))
+    ax.scatter(a[trs], m[trs], s=1, color=colors[1], alpha=0.8, label="%s %s regions" % (len(trs), lt ))
+    leg = ax.legend( loc='best', labelcolor=["gray", colors[0], colors[1]])
+    for h in leg.legendHandles:
+        h._sizes = [10]
+    ax.axhline(0, color="gray", linestyle="--")
+    ax.set_title(f"signal comparsion\nMahalanobis distance P-value < {pcut}")
+    ax.set_xlabel(f"log2({lt})+log2({lc})")
+    ax.set_ylabel(f"log2({lt})-log2({lc})")
+    pylab.savefig(o+"_MA.pdf")
+
+
 
 @click.command()
 @click.option(
@@ -311,11 +332,12 @@ def twoPassesMDTest(data, pcut=0.01):
 @click.option(
     "-pcut",
     required=False,
-    help="The p-value cutoff for Chi-squared test for two-pass Mahalanobis distance. Default is 0.01.",
+    help=
+    "The p-value cutoff for Chi-squared test for two-pass Mahalanobis distance. Default is 0.01.",
     type=float,
-    default="0.01",
+    default="0.05",
 )
-def patrol(r, c, t, o, lc, lt, pcut=0.01 ):
+def patrol(r, c, t, o, lc, lt, pcut=0.05):
     """
     Identify highly variable features with two passes MD test after normalization with internal reference from DNase-seq, ATAC-seq, ChIP-seq and MNase-seq. 
     
@@ -329,9 +351,7 @@ def patrol(r, c, t, o, lc, lt, pcut=0.01 ):
     #start
     start = datetime.now()
     script = os.path.basename(__file__)
-    rprint(
-        f"{script} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt}"
-    )
+    rprint(f"{script} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt}")
 
     #step 0 parameters check
     for f in [r, c, t]:
@@ -345,22 +365,33 @@ def patrol(r, c, t, o, lc, lt, pcut=0.01 ):
     rs = readBed(r)
     rs, bgs = getFgBgs(rs)
 
-    #step 2 quantify features 
+    #step 2 quantify features
     rprint(f"[{o}] Step 1: quantify {lc} sample")
-    sc = quant(rs, bgs, c)
+    sc,cn = quant(rs, bgs, c)
     rprint(f"[{o}] Step 1: quantify {lt} sample")
-    st = quant(rs, bgs, t)
-    
+    st,tn = quant(rs, bgs, t)
+
     #step 3 perform two-passes MD test
     rprint(f"[{o}] Step 2: perform the two-passes MD test")
     sc2 = np.log2(sc)
     st2 = np.log2(st)
-    a = (sc2+st2)/2
+    a = (sc2 + st2) / 2
     m = st2 - sc2
-    data = pd.DataFrame({"m":m, "a":a})
-    dis, ps = twoPassesMDTest(data, pcut=pcut)
-    nps = ps[ps<pcut]
-    print(data.shape, nps.shape)
+    ds = pd.DataFrame({"m": m, "a": a})
+    dis, ps = twoPassesMDTest(ds, pcut=pcut)
+    data = {lc: sc, lt:st, f"log2 fold change ({lt}/{lc})":m, "average": a,"MD":dis, "Chi-squared P-value": ps}
+    data = pd.DataFrame(data)
+    data.to_csv(f"{o}_stat.txt",sep="\t",index_label="regionId")
+    rprint(f"[{o}] Step 2: test results saved to {o}_stat.txt.")
+    
+    #step 4 show the results
+    rprint(f"[{o}] Step 3: show the detected variables MA plot")
+    noise = np.log2(cn) + np.log2(tn)
+    #_sc = sc[sc>cn]
+    #_st = st[st>tn]
+    #noise = (np.log2(np.mean(_sc)) + np.log2(np.mean(_st)))/2
+    showMA(m, a, lc, lt, ps, o, noise, pcut=pcut)
+
 
     #finished
     end = datetime.now()

@@ -5,6 +5,7 @@ PAW algorithm for cross-sample ChIP-seq/DNase-seq/ATAC-seq normalization with in
 
 2025-04-04: init
 2025-04-09: revised and basically finished
+2025-04-11: revising by introducing noise remove with MD test in the first step for internal reference, then based on this to do normalization.
 """
 
 __author__ = "CAO Yaqiang"
@@ -25,6 +26,8 @@ import pyBigWig
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from scipy import linalg
+from scipy.stats import chi2
 from joblib import Parallel, delayed
 from sklearn.mixture import GaussianMixture as GMM
 
@@ -32,10 +35,8 @@ from sklearn.mixture import GaussianMixture as GMM
 warnings.filterwarnings("ignore")
 #plotting setting
 import matplotlib as mpl
-
 mpl.use("pdf")
 import seaborn as sns
-
 mpl.rcParams["pdf.fonttype"] = 42
 mpl.rcParams["figure.figsize"] = (3.2, 2.2)
 mpl.rcParams["savefig.transparent"] = True
@@ -44,7 +45,6 @@ mpl.rcParams["font.size"] = 7.0
 mpl.rcParams["font.sans-serif"] = "Arial"
 mpl.rcParams["savefig.format"] = "pdf"
 import pylab
-
 sns.set_style("white")
 colors = [
     (0.8941176470588236, 0.10196078431372549, 0.10980392156862745),
@@ -97,6 +97,55 @@ def readBed(f):
             continue
         rs.append(line[:3])
     return rs
+
+
+def quant(rs, bwf):
+    """
+    Quantify genomic features from bigWig file. 
+
+    @param rs: list, [[chrom, start,end]], region of interest
+    @param bwf: str, bigWig file path
+    """
+    bwo = pyBigWig.open(bwf)
+    s = {}
+    for r in tqdm(rs):
+        chrom = r[0]
+        start = r[1]
+        end = r[2]
+        rid = f"{chrom}:{start}-{end}"
+        ns = bwo.values(chrom, start, end)
+        ns = np.nan_to_num(ns)
+        ns = np.sum(ns) / len(ns)
+        s[rid] = ns
+    bwo.close()
+    s = pd.Series(s)
+    return s
+
+
+def mahalanobis(mat):
+    """
+    Caculate the mahalanobis distance.
+
+    according to: https://www.statology.org/mahalanobis-distance-python/
+
+    @param mat: np.array, row is each item and column is each variable 
+
+    @return dis: np.array,Mahalanobis distance
+    @return ps: np.array, chi-square test p-values
+    """
+    #covariance matrix
+    cov = np.cov(mat, rowvar=False)
+    #inverse covariance matrix
+    invCov = np.linalg.inv(cov)
+    #center
+    center = np.mean(mat, axis=0)
+    #mahalanobis distance
+    mu = mat - center
+    dis = np.dot(np.dot(mu, invCov), mu.T).diagonal()
+    #Chi-square test p-values for detecting outliers
+    ps = 1 - chi2.cdf(dis, mat.shape[1] - 1)
+    return dis, ps
+
 
 
 def showSig(rs,
@@ -328,7 +377,7 @@ def estFit(fgs,
     tgtS = getBwSig(fgs, tgtBw, bins=bins)
     tgtS = pd.Series(tgtS.reshape(-1))
 
-    fig, axs = pylab.subplots(1, 3, figsize=(6, 2))
+    fig, axs = pylab.subplots(1, 4, figsize=(8, 2))
     axs = axs.reshape(-1)
 
     #signal conversion
@@ -387,10 +436,17 @@ def estFit(fgs,
     ax.set_xlabel("A, (log2(%s)+log2(%s))/2)" % (refLabel, tgtLabel))
     ax.set_ylabel("M, log2(%s)-log2(%s)" % (tgtLabel, refLabel))
 
+    #plot signal distribution after correction
+    ax = axs[3]
+    sns.kdeplot(refS, label=refLabel, ax=ax, fill=True, color=colors[0])
+    sns.kdeplot(tgtSc, label=tgtLabel, ax=ax, fill=True, color=colors[1])
+    ax.legend()
+    ax.set_xlabel("log2(signal)")
+    ax.set_title("signal distribution after correction")
+
     pylab.tight_layout()
     pylab.savefig(fnOut + "_3_fgSignalConversion.pdf")
     return [alpha, beta]
-
 
 
 def getGmm(fg, bg, bw, ax, title, ext=5000, bins=10):
@@ -590,13 +646,37 @@ def paw(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
     #step 1 read reference peaks/regions
     refPeaks = readBed(r)
 
-    #step 2 generate background region
-    fgs, bgs = getFgBgs(refPeaks)
-    rprint("[%s] Step 1: reference peaks: %s; background regions: %s" %
+    #step 2 remove possible outliers with MD test
+    rprint(f"[{o}] Step 1: remove potential outliers with MD test" )
+    #quant 
+    sc = quant(refPeaks, c)
+    st = quant(refPeaks, t)
+    sc = sc[sc>0]
+    st = st[st>0]
+    ss = sc.index.intersection(st.index)
+    sc = np.log2(sc[ss])
+    st = np.log2(st[ss])
+    data = pd.DataFrame({"a":(sc+st)/2,"m": (st-sc)})
+    #MD test 
+    pcut = 0.1
+    dis, ps = mahalanobis(data.values)
+    dis = pd.Series(dis, index=data.index)
+    ps = pd.Series(ps, index=data.index)
+    inds = ps[ps > pcut].index #keep the majority
+    fgs = []
+    for ind in inds:
+        _chrom = ind.split(":")[0]
+        _start = int( ind.split(":")[1].split("-")[0] )
+        _end = int( ind.split(":")[1].split("-")[1] )
+        fgs.append( [_chrom, _start, _end])
+
+    #step 3 generate background region
+    fgs, bgs = getFgBgs(fgs)
+    rprint("[%s] Step 2: reference peaks: %s; background regions: %s" %
            (o, len(fgs), len(bgs)))
 
-    #step 3 show the orignal signal around reference centers
-    rprint(f"[{o}] Step 2: check original signals")
+    #step 4 show the orignal signal around reference centers
+    rprint(f"[{o}] Step 3: check original signals")
     showSig(fgs,
             c,
             t,
@@ -608,7 +688,7 @@ def paw(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
 
     #step 4 qc for signal to noise ratio and noise level
     rprint(
-        f"[{o}] Step 3: initial QC for background noise level and signal-to-noise ratio."
+        f"[{o}] Step 4: initial QC for background noise level and signal-to-noise ratio."
     )
     fgRef, fgTgt, bgRef, bgTgt = getQc(fgs,
                                        bgs,
@@ -619,29 +699,29 @@ def paw(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
                                        tgtLabel=lt)
     #scaling factor for background region
     sf = bgRef.mean() / bgTgt.mean()
-    rprint(f"[{o}] Step 3: estimated background scaling factor: {sf:.3f}.")
+    rprint(f"[{o}] Step 5: estimated background scaling factor: {sf:.3f}.")
 
     #step 5  estimate sample-wise fitting parameters, scaling factor for signal regions
-    rprint(f"[{o}] Step 4: estimate signal region fitting parameters ")
+    rprint(f"[{o}] Step 6: estimate signal region fitting parameters ")
     alpha, beta = estFit(fgs, c, t, bgRef, bgTgt, sf, o, lc, lt)
     if beta > 0:
         rprint(
-            f"[{o}] Step 4: estimated linear fitting for signal region: log2({lt})={alpha:.3f}log2({lt}) + {beta:.3f}"
+            f"[{o}] Step 6: estimated linear fitting for signal region: log2({lt})={alpha:.3f}log2({lt}) + {beta:.3f}"
         )
     else:
         rprint(
-            f"[{o}] Step 4: estimated linear fitting for signal region: log2({lt})={alpha:.3f}log2({lt}) {beta:.3f}"
+            f"[{o}] Step 6: estimated linear fitting for signal region: log2({lt})={alpha:.3f}log2({lt}) {beta:.3f}"
         )
 
     #step 6 train GMM with fg and bg data for classifiy fg and bg regions
     rprint(
-        f"[{o}] Step 5: train Gaussian Mixture Model for classfication of background and signal regions"
+        f"[{o}] Step 7: train Gaussian Mixture Model for classfication of background and signal regions"
     )
     tgtGmm, tgtCs = trainGmm(fgs, bgs, t, o, lt, ext=ext)
 
     #step 7 performe normalization to tgt bigwig files
     noiseTgt = bgTgt.mean()
-    rprint(f"[{o}] Step 6: normalize target sample bigWig file.")
+    rprint(f"[{o}] Step 8: normalize target sample bigWig file.")
     normTgtBw(t,
               tgtGmm,
               tgtCs,
@@ -652,7 +732,7 @@ def paw(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
               csf=csf)
 
     #step 8 show the corrected signal around reference centers
-    rprint(f"[{o}] Step 7: check corrected signals")
+    rprint(f"[{o}] Step 9: check corrected signals")
     showSig(fgs,
             c,
             o + "_" + lt + ".bw",
