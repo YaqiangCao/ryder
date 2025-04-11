@@ -4,6 +4,18 @@
 PATROL algorithm for cross-sample normalized ChIP-seq/DNase-seq/ATAC-seq differential peaks detection. 
 """
 
+#sys
+__author__ = "CAO Yaqiang"
+__date__ = "2025-04-09"
+__modified__ = ""
+__email__ = "caoyaqiang0410@gmail.com"
+
+#sys library
+import os
+import warnings
+from datetime import datetime
+
+
 #3rd
 import click
 import pyBigWig
@@ -18,10 +30,8 @@ from joblib import Parallel, delayed
 warnings.filterwarnings("ignore")
 #plotting setting
 import matplotlib as mpl
-
 mpl.use("pdf")
 import seaborn as sns
-
 mpl.rcParams["pdf.fonttype"] = 42
 mpl.rcParams["figure.figsize"] = (3.2, 2.2)
 mpl.rcParams["savefig.transparent"] = True
@@ -113,6 +123,47 @@ def twoPassesMDTest(data, pcut=0.01):
     return dis, ps
 
 
+
+def rprint(message):
+    """
+    Print message with time.
+    @param message: str, 
+    @returns: None
+    """
+    report = "\t".join([
+        str(datetime.now()),
+        message,
+    ])
+    print(report)
+
+
+def readBed(f):
+    rs = []
+    for line in open(f):
+        line = line.split("\n")[0].split("\t")
+        if len(line) < 3:
+            continue
+        try:
+            line[1] = int(line[1])
+            line[2] = int(line[2])
+        except:
+            continue
+        if line[2] - line[1] < 100:
+            continue
+        rs.append(line[:3])
+    return rs
+
+
+def quant(rs,bwf):
+    """
+    Quantify genomic features from bigWig file. 
+
+    @param rs: list, [[chrom, start,end]], region of interest
+    @param bwf: str, bigWig file path
+    """
+    s = {}
+    return s
+
 @click.command()
 @click.option(
     "-r",
@@ -153,30 +204,29 @@ def twoPassesMDTest(data, pcut=0.01):
     type=str,
     default="trt",
 )
-@click.option("-p",
-              default=2,
-              type=int,
-              help="Number of CPUs to finish the job, default is set to 2.")
-def patrol(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
+@click.option(
+    "-pcut",
+    required=False,
+    help="The p-value cutoff for Chi-squared test for two-pass Mahalanobis distance. Default is 0.01.",
+    type=float,
+    default="0.01",
+)
+def patrol(r, c, t, o, lc, lt, pcut=0.01 ):
     """
-    To normalize target sample ChIP-seq, ATAC-seq, or DNase-seq data to a reference sample at base-pair resolution, we assume: 1) background noise levels are similar; and 2) specific regions, such as conserved CTCF sites or transcription start sites (TSS) of genes with unchanged expression, maintain similar signal-to-noise ratios. This normalization aims to account for inter-sample variability. It is crucial that input BigWig files are pre-normalized to Reads Per Million (RPM) before applying this method.
+    Identify highly variable features with two passes MD test after normalization with internal reference from DNase-seq, ATAC-seq, ChIP-seq and MNase-seq. 
     
     Examples:
 
         1. typical pair-wise comparsion   
 
-            paw.py -r ref.bed -c control.bw -t trt.bw -o test 
+            patrol.py -r regionOfInterest.bed -c control.bw -t pawed_trt.bw -o test 
     
-
-        2. replicates alignment 
-
-            paw.py -r peaks.bed -c rep1.bw -t rep2.bw -o test 
     """
     #start
     start = datetime.now()
     script = os.path.basename(__file__)
     rprint(
-        f"{script} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -ext {ext} -p {p} -csf {csf}"
+        f"{script} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt}"
     )
 
     #step 0 parameters check
@@ -188,7 +238,8 @@ def patrol(r, c, t, o, lc, lt, ext=10000, csf="", p=2):
         os.makedirs(od, exist_ok=True)
 
     #step 1 read reference peaks/regions
-    refPeaks = readBed(r)
+    rs = readBed(r)
+
 
     #finished
     end = datetime.now()

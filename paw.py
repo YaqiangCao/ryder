@@ -392,28 +392,6 @@ def estFit(fgs,
     return [alpha, beta]
 
 
-def corrSig(ss, noise=None, sf=None, sf2=None, trim=False):
-    """
-    ss: signal matrix
-    noise: value, random noise
-    sn: signal noise ratio
-    sf: scaling fitting, if none, do not scaling
-    """
-    ns = []
-    ss = pd.DataFrame(ss)
-    for t in ss.itertuples():
-        t = np.array(t[1:])
-        if noise is not None:
-            t = t - noise
-        if trim:
-            t[t < 0] = 0
-        if sf is not None:
-            t = t * sf
-        if sf2 is not None:
-            t = 2**(np.log2(t) * sf2[0] + sf2[1])
-        ns.append(t)
-    return pd.DataFrame(ns)
-
 
 def getGmm(fg, bg, bw, ax, title, ext=5000, bins=10):
     """
