@@ -161,8 +161,20 @@ def quant(rs,bwf):
     @param rs: list, [[chrom, start,end]], region of interest
     @param bwf: str, bigWig file path
     """
+    bwo = pyBigWig.open(bwf)
     s = {}
+    for r in tqdm(rs):
+        chrom = r[0]
+        start = r[1]
+        end = r[2]
+        rid = f"{chrom}:{start}-{end}"
+        ns = bwo.values(chrom, start, end)
+        ns = np.nan_to_num(ns)
+        s[ rid ] = np.sum(ns)/len( ns )
+    bwo.close()
+    s = pd.Series(s)
     return s
+
 
 @click.command()
 @click.option(
@@ -240,6 +252,11 @@ def patrol(r, c, t, o, lc, lt, pcut=0.01 ):
     #step 1 read reference peaks/regions
     rs = readBed(r)
 
+    #step 2 quantify features 
+    rprint(f"[{o}] Step 1: quantify {lc} sample")
+    sc = quant(rs, c)
+    rprint(f"[{o}] Step 1: quantify {lt} sample")
+    st = quant(rs, t)
 
     #finished
     end = datetime.now()
