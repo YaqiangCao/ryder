@@ -2,11 +2,29 @@
 # --coding:utf-8--
 
 """
-PAW algorithm for cross-sample ChIP-seq/DNase-seq/ATAC-seq normalization with internal control.
+PAW algorithm for cross-sample ChIP-seq/DNase-seq/ATAC-seq normalization with internal control. 
 
-2025-04-04: init
-2025-04-09: revised and basically finished
-2025-04-11: revising by introducing noise remove with MD test in the first step for internal reference, then based on this to do normalization.
+Normalizes ChIP-seq, DNase-seq, or ATAC-seq data between a target sample and a control/reference sample using internal reference regions (e.g., housekeeping gene TSSs, conserved CTCF sites) assumed to be stable across conditions.
+
+The algorithm involves:
+1. Identifying stable reference regions by removing outliers using Mahalanobis distance.
+2. Defining foreground (reference) and background regions.
+3. Calculating initial QC metrics (signal-to-noise, background levels).
+4. Estimating a scaling factor for background noise.
+5. Estimating linear transformation parameters (alpha, beta) for signal regions after log2 transformation.
+6. Training a Gaussian Mixture Model (GMM) to distinguish signal from noise in the target sample based on reference/background regions.
+7. Applying normalization to the target BigWig file:
+    - Noise regions are scaled by the background factor.
+    - Signal regions are transformed using the estimated alpha and beta on log2-scaled data, then converted back.
+
+Assumptions:
+    - Input BigWig files are pre-normalized (e.g., to RPM, CPM).
+    - Provided reference regions contain a sufficient number of stable sites.
+History:
+2025-04-04: Initial version
+2025-04-09: Revised and basically finished
+2025-04-11: Introduced Mahalanobis distance test for outlier removal in reference regions. 
+
 """
 
 __author__ = "CAO Yaqiang"
@@ -14,22 +32,15 @@ __date__ = "2025-04-04"
 __modified__ = ""
 __email__ = "caoyaqiang0410@gmail.com"
 
-
-######################################
-# Standard Library Imports & Setup #
-######################################
+#sys
 import os
 import random
 import warnings
 from glob import glob
 from datetime import datetime
-
-# Suppress warnings
 warnings.filterwarnings("ignore")
 
-######################################
-# Third-party Library Imports        #
-######################################
+#3rd
 import click
 import pyBigWig
 import numpy as np
@@ -44,7 +55,6 @@ import matplotlib as mpl
 mpl.use("pdf")
 import seaborn as sns
 import pylab
-
 mpl.rcParams["pdf.fonttype"] = 42
 mpl.rcParams["figure.figsize"] = (3.2, 2.2)
 mpl.rcParams["savefig.transparent"] = True
@@ -53,7 +63,6 @@ mpl.rcParams["font.size"] = 7.0
 mpl.rcParams["font.sans-serif"] = "Arial"
 mpl.rcParams["savefig.format"] = "pdf"
 sns.set_style("white")
-
 # Define a list of colors for plotting
 colors = [
     (0.8941176470588236, 0.10196078431372549, 0.10980392156862745),
@@ -709,114 +718,79 @@ def normTgtBw(bw_filepath, gmm, gmm_class_mapping, noise, bg_sf, sig_sf_params, 
     "-r",
     required=True,
     type=str,
-    help=(
-        "Path to a BED format file specifying the reference regions. "
-        "These regions are assumed to have no change between samples. "
-        "Each region must have at least three columns: chromosome, start, and end. "
-        "Regions with a width less than 100 bp will be ignored. "
-        "Example: ref_regions.bed"
-    ),
+    help="Path to a BED format file specifying the reference regions. These regions are assumed to have no change between samples. Each region must have at least three columns: chromosome, start, and end. Regions with a width less than 100 bp will be ignored. Example: ref_regions.bed"
 )
 @click.option(
     "-o",
     required=True,
     type=str,
-    help=(
-        "Output file prefix for the results. The program will generate several output files "
-        "using this prefix, including QC plots and normalized bigWig files. "
-        "Example: results/test"
-    ),
+    help="Output file prefix for the results. The program will generate several output files using this prefix, including QC plots and normalized bigWig files. Example: results/test"
 )
 @click.option(
     "-c",
     required=True,
     type=str,
-    help=(
-        "Path to the control sample bigWig file. This file should be pre-normalized to RPM (Reads Per Million). "
-        "Example: control_sample.bw"
-    ),
+    help="Path to the control sample bigWig file. This file should be pre-normalized to RPM (Reads Per Million) or similar normalization with total reads. Example: control_sample.bw"
 )
 @click.option(
     "-lc",
     default="control",
     type=str,
-    help=(
-        "Label for the control sample. This label is used in plots and output messages. "
-        "Default: 'control'"
-    ),
+    help="Label for the control sample. This label is used in plots and output messages. Default: 'control'"
 )
 @click.option(
     "-t",
     required=True,
     type=str,
-    help=(
-        "Path to the treatment sample bigWig file. This file should be pre-normalized to RPM (Reads Per Million). "
-        "Example: treatment_sample.bw"
-    ),
+    help="Path to the treatment sample bigWig file. This file should be pre-normalized to RPM (Reads Per Million). Example: treatment_sample.bw"
 )
 @click.option(
     "-lt",
     default="trt",
     type=str,
-    help=(
-        "Label for the treatment sample. This label is used in plots and output messages. "
-        "Default: 'trt'"
-    ),
+    help="Label for the treatment sample. This label is used in plots and output messages. Default: 'trt'"
 )
 @click.option(
     "-ext",
     default=10000,
     type=int,
-    help=(
-        "Extension size (in base pairs) to define the region around reference centers used for "
-        "classification with the Gaussian Mixture Model (GMM). For narrow peaks, a typical value is 10,000 bp. "
-        "For broad peaks (e.g., H3K27me3), consider increasing this value (e.g., 50,000 bp)."
-    ),
+    help="Extension size (in base pairs) to define the region around reference centers used for classification with the Gaussian Mixture Model (GMM). For narrow peaks, a typical value is 10,000 bp. For broad peaks (e.g., H3K27me3), consider increasing this value (e.g., 50,000 bp)."
 )
 @click.option(
     "-csf",
     required=True,
     type=str,
-    help=(
-        "Path to the chromosome size file, which is required to convert bedGraph files to bigWig format. "
-        "This file can be generated using the 'fetchChromSizes' command. "
-        "Example: chrom.sizes"
-    ),
+    help="Path to the chromosome size file, which is required to convert bedGraph files to bigWig format. This file can be generated using the 'fetchChromSizes' command.  Example: chrom.sizes"
 )
 @click.option(
     "-p",
     default=2,
     type=int,
-    help=(
-        "Number of CPUs to be used for parallel processing. Increasing this value can reduce processing time "
-        "if multiple cores are available. Default: 2."
-    ),
+    help="Number of CPUs to be used for parallel processing. Increasing this value can reduce processing time if multiple cores are available. Default: 2."
 )
 def paw(r, c, t, o, lc, lt, ext, csf, p):
     """
-    PAW: Peak Adjustment Workflow for cross-sample ChIP-seq/DNase-seq/ATAC-seq normalization.
+    PAW: Cross-sample ChIP-seq/DNase-seq/ATAC-seq normalization with internal reference.
     
     This tool normalizes a target sample (treatment) to a reference sample (control) at base-pair resolution.
+
     It relies on the assumption that:
+
       1. Background noise levels are similar between the samples.
+
       2. Specific regions (e.g., conserved CTCF sites or transcription start sites) have similar signal-to-noise ratios.
       
     Prior to running PAW, ensure that the input bigWig files are pre-normalized to Reads Per Million (RPM).
     
-    The workflow includes the following major steps:
-      - Reading reference regions from a BED file.
-      - Removing potential outlier regions using a Mahalanobis Distance test.
-      - Generating foreground and background regions for further analysis.
-      - Performing quality control by comparing signal profiles and signal-to-noise ratios.
-      - Estimating linear fitting parameters between the control and treatment samples.
-      - Training a Gaussian Mixture Model (GMM) to classify regions as noise or signal.
-      - Normalizing the treatment bigWig file and converting the output to bigWig format.
-    
     Examples:
+
       1. Typical pair-wise comparison:
-         $ paw.py -r ref_regions.bed -c control_sample.bw -t treatment_sample.bw -o results/test
-         
+
+         $ paw.py -r ref_regions.bed -c control_sample.bw -t treatment_sample.bw -o results/test      
+        
+
       2. Replicate alignment:
+
          $ paw.py -r peaks.bed -c rep1.bw -t rep2.bw -o results/test
     """
     start_time = datetime.now()
@@ -837,41 +811,42 @@ def paw(r, c, t, o, lc, lt, ext, csf, p):
     refPeaks = readBed(r)
 
     # Step 2: Remove outliers from reference peaks using the Mahalanobis Distance test
+    rprint(f"[{o}] Step 1/8: remove potential outliers with MD test" )
     filtered_peaks = removeOutliers(refPeaks, c, t, pcut=0.1)
 
     # Step 3: Generate foreground (signal) and background regions
     fg_regions, bg_regions = getFgBgs(filtered_peaks)
-    rprint(f"[{o}] Step 2: reference peaks: {len(fg_regions)}; background regions: {len(bg_regions)}")
+    rprint(f"[{o}] Step 2/8: reference peaks: {len(fg_regions)}; background regions: {len(bg_regions)}")
 
     # Step 4: Visualize original signals around reference centers
-    rprint(f"[{o}] Step 3: check original signals")
+    rprint(f"[{o}] Step 3/8: check original signals")
     showSig(fg_regions, c, t, o + "_1_orig", title="original signal", refLabel=lc, tgtLabel=lt, ext=ext)
 
     # Step 5: Perform initial QC for noise and signal-to-noise ratio
-    rprint(f"[{o}] Step 4: initial QC for background noise level and signal-to-noise ratio.")
+    rprint(f"[{o}] Step 4/8: initial QC for background noise level and signal-to-noise ratio.")
     fgRef, fgTgt, bgRef, bgTgt = getQc(fg_regions, bg_regions, c, t, o, refLabel=lc, tgtLabel=lt)
     bg_scaling_factor = bgRef.mean() / bgTgt.mean()
-    rprint(f"[{o}] Step 5: estimated background scaling factor: {bg_scaling_factor:.3f}.")
+    rprint(f"[{o}] Step 4/8: estimated background scaling factor: {bg_scaling_factor:.3f}.")
 
     # Step 6: Estimate linear fit parameters for signal regions
-    rprint(f"[{o}] Step 6: estimate signal region fitting parameters")
+    rprint(f"[{o}] Step 5/8: estimate signal region fitting parameters")
     alpha, beta = estFit(fg_regions, c, t, bgRef, bgTgt, bg_scaling_factor, o, lc, lt)
     if beta > 0:
-        rprint(f"[{o}] Step 6: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({lt}) + {beta:.3f}")
+        rprint(f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({lt}) + {beta:.3f}")
     else:
-        rprint(f"[{o}] Step 6: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({lt}) {beta:.3f}")
+        rprint(f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({lt}) {beta:.3f}")
 
     # Step 7: Train GMM for classification of target sample regions
-    rprint(f"[{o}] Step 7: train Gaussian Mixture Model for classification")
+    rprint(f"[{o}] Step 6/8: train Gaussian Mixture Model for classification")
     tgtGmm, tgt_class_mapping = trainGmm(fg_regions, bg_regions, t, o, lt, ext=ext)
 
     # Step 8: Normalize the treatment sample bigWig file
     noise_level = bgTgt.mean()
-    rprint(f"[{o}] Step 8: normalize target sample bigWig file.")
+    rprint(f"[{o}] Step 7/8: normalize target sample bigWig file.")
     normTgtBw(t, tgtGmm, tgt_class_mapping, noise_level, bg_scaling_factor, [alpha, beta], o + "_" + lt, n_jobs=p, csf=csf)
 
     # Step 9: Visualize corrected signals around reference centers
-    rprint(f"[{o}] Step 9: check corrected signals")
+    rprint(f"[{o}] Step 8/8: check corrected signals")
     showSig(fg_regions, c, o + "_" + lt + ".bw", o + "_5_corr", title="correct signal", refLabel=lc, tgtLabel=lt, ext=ext)
 
     end_time = datetime.now()
