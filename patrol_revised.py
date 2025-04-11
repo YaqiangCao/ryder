@@ -12,19 +12,13 @@ Date: 2025-04-09
 Email: caoyaqiang0410@gmail.com
 """
 
-######################################
-# Standard Library Imports & Setup #
-######################################
+#sys
 import os
 import warnings
 from datetime import datetime
-
-# Suppress warnings
 warnings.filterwarnings("ignore")
 
-######################################
-# Third-party Library Imports        #
-######################################
+#3rd
 import click
 import pyBigWig
 import numpy as np
@@ -38,7 +32,6 @@ import matplotlib as mpl
 mpl.use("pdf")
 import seaborn as sns
 import pylab
-
 mpl.rcParams["pdf.fonttype"] = 42
 mpl.rcParams["figure.figsize"] = (3.2, 2.2)
 mpl.rcParams["savefig.transparent"] = True
@@ -47,7 +40,6 @@ mpl.rcParams["font.size"] = 7.0
 mpl.rcParams["font.sans-serif"] = "Arial"
 mpl.rcParams["savefig.format"] = "pdf"
 sns.set_style("white")
-
 # Define a list of colors for plotting
 colors = [
     (0.8941176470588236, 0.10196078431372549, 0.10980392156862745),
@@ -407,24 +399,17 @@ def showMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, pc
 )
 def patrol(r, c, t, o, lc, lt, pcut):
     """
-    PATROL: Differential Peaks Detection Algorithm.
+    PATROL: Sequencing Data Variable Features Detection Algorithm.
 
-    This tool detects highly variable genomic features by performing a two-pass Mahalanobis distance test
-    on normalized ChIP-seq/DNase-seq/ATAC-seq data. It quantifies signals over specified regions,
-    estimates background noise, and identifies differential signals using statistical tests.
-
-    Workflow:
-      1. Read regions from the BED file and generate background regions to estimate noise.
-      2. Quantify signals from both control and treatment samples.
-      3. Perform a two-pass Mahalanobis distance test to compute distances and p-values.
-      4. Save statistical data and generate an MA plot of the differential signals.
+    This tool detects highly variable genomic features by performing a two-pass Mahalanobis distance test on normalized ChIP-seq/DNase-seq/ATAC-seq data. It quantifies signals over specified regions, estimates background noise, and identifies differential signals using statistical tests.
 
     Examples:
-      $ patrol.py -r regions.bed -c control.bw -t treatment.bw -o results/test
+      $ patrol.py -r regions.bed -c control.bw -t treatment.bw -o results_diff
+
     """
     start_time = datetime.now()
     script_name = os.path.basename(__file__)
-    rprint(f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt}")
+    rprint(f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -pcut {pcut}")
 
     # Step 0: Check required input files exist
     for filepath in [r, c, t]:
@@ -471,8 +456,10 @@ def patrol(r, c, t, o, lc, lt, pcut):
 
     # Step 5: Generate and save MA plot of differential signals
     rprint(f"[{o}] Step 3: Generating MA plot of detected differential features")
-    combined_noise = np.log2(control_noise) + np.log2(treatment_noise)
+    combined_noise = A[p_values[p_values>pcut].index].min()
     showMA(M, A, lc, lt, p_values, o, combined_noise, pcut=pcut)
+
+    # Step 6: Show aggregated differential peaks 
 
     end_time = datetime.now()
     rprint(f"{script_name} job finished. Used time: {end_time - start_time}")
