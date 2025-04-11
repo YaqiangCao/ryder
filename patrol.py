@@ -65,6 +65,61 @@ colors = [
 ]
 
 
+
+
+def rprint(message):
+    """
+    Print message with time.
+    @param message: str, 
+    @returns: None
+    """
+    report = "\t".join([
+        str(datetime.now()),
+        message,
+    ])
+    print(report)
+
+
+def readBed(f):
+    rs = []
+    for line in open(f):
+        line = line.split("\n")[0].split("\t")
+        if len(line) < 3:
+            continue
+        try:
+            line[1] = int(line[1])
+            line[2] = int(line[2])
+        except:
+            continue
+        if line[2] - line[1] < 100:
+            continue
+        rs.append(line[:3])
+    return rs
+
+
+def quant(rs,bwf):
+    """
+    Quantify genomic features from bigWig file. 
+
+    @param rs: list, [[chrom, start,end]], region of interest
+    @param bwf: str, bigWig file path
+    """
+    bwo = pyBigWig.open(bwf)
+    s = {}
+    for r in tqdm(rs):
+        chrom = r[0]
+        start = r[1]
+        end = r[2]
+        rid = f"{chrom}:{start}-{end}"
+        ns = bwo.values(chrom, start, end)
+        ns = np.nan_to_num(ns)
+        s[ rid ] = np.sum(ns)/len( ns )
+    bwo.close()
+    s = pd.Series(s)
+    return s
+
+
+
 def mahalanobis(mat):
     """
     Caculate the mahalanobis distance.
@@ -122,58 +177,6 @@ def twoPassesMDTest(data, pcut=0.01):
     ps = pd.Series(ps, index=data.index)
     return dis, ps
 
-
-
-def rprint(message):
-    """
-    Print message with time.
-    @param message: str, 
-    @returns: None
-    """
-    report = "\t".join([
-        str(datetime.now()),
-        message,
-    ])
-    print(report)
-
-
-def readBed(f):
-    rs = []
-    for line in open(f):
-        line = line.split("\n")[0].split("\t")
-        if len(line) < 3:
-            continue
-        try:
-            line[1] = int(line[1])
-            line[2] = int(line[2])
-        except:
-            continue
-        if line[2] - line[1] < 100:
-            continue
-        rs.append(line[:3])
-    return rs
-
-
-def quant(rs,bwf):
-    """
-    Quantify genomic features from bigWig file. 
-
-    @param rs: list, [[chrom, start,end]], region of interest
-    @param bwf: str, bigWig file path
-    """
-    bwo = pyBigWig.open(bwf)
-    s = {}
-    for r in tqdm(rs):
-        chrom = r[0]
-        start = r[1]
-        end = r[2]
-        rid = f"{chrom}:{start}-{end}"
-        ns = bwo.values(chrom, start, end)
-        ns = np.nan_to_num(ns)
-        s[ rid ] = np.sum(ns)/len( ns )
-    bwo.close()
-    s = pd.Series(s)
-    return s
 
 
 @click.command()
@@ -257,6 +260,8 @@ def patrol(r, c, t, o, lc, lt, pcut=0.01 ):
     sc = quant(rs, c)
     rprint(f"[{o}] Step 1: quantify {lt} sample")
     st = quant(rs, t)
+    
+    #step 3 perform two-passes MD test
 
     #finished
     end = datetime.now()
