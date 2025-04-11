@@ -97,7 +97,84 @@ def readBed(f):
     return rs
 
 
-def quant(rs,bwf):
+def buildCov(rs):
+    """
+    Genomic region coverage
+    """
+    lims = {}
+    cov = {}
+    for r in rs:
+        #coverages
+        if r[0] not in cov:
+            cov[r[0]] = set()
+        cov[r[0]].update(range(r[1], r[2] + 1))
+        #range limitations
+        if r[0] not in lims:
+            lims[r[0]] = [r[1], r[2]]
+        if r[1] < lims[r[0]][0]:
+            lims[r[0]][0] = r[1]
+        if r[2] > lims[r[0]][1]:
+            lims[r[0]][1] = r[2]
+    return cov, lims
+
+
+def getRegion(cov, margin=1):
+    """
+    Get regions from coverage
+    """
+    rs = []
+    for c, s in cov.items():
+        s = list(s)
+        s.sort()
+        i = 0
+        while i < len(s) - 1:
+            for j in range(i + 1, len(s)):
+                if s[j] - s[j - 1] > margin:
+                    break
+                else:
+                    continue
+            start = s[i]
+            end = s[j - 1]
+            i = j  #update search start
+            rs.append([c, start, end])
+    return rs
+
+
+def checkBgOverlaps(c, s, e, cov, lims):
+    if s < lims[c][0] or e > lims[c][1]:
+        return True
+    for i in range(s, e + 1):
+        if i in cov[c]:
+            return True
+    return False
+
+
+def getFgBgs(refPeaks, exts=[10]):
+    """
+    Get the background regions.
+    """
+    refCov, refLims = buildCov(refPeaks)
+    fgs = getRegion(refCov)  #sorted reference
+    bgs = []
+    for r in fgs:
+        d = r[2] - r[1]
+        c = r[0]
+        for ext in exts:
+            s = r[1] - ext * d
+            e = r[2] - ext * d
+            if checkBgOverlaps(c, s, e, refCov, refLims):
+                continue
+            bgs.append([c, s, e])
+            s = r[1] + ext * d
+            e = r[2] + ext * d
+            if checkBgOverlaps(c, s, e, refCov, refLims):
+                continue
+            bgs.append([c, s, e])
+    return fgs, bgs
+
+
+
+def quant(rs,bgs,bwf):
     """
     Quantify genomic features from bigWig file. 
 
@@ -105,6 +182,15 @@ def quant(rs,bwf):
     @param bwf: str, bigWig file path
     """
     bwo = pyBigWig.open(bwf)
+    noise = []
+    for r in bgs:
+        chrom = r[0]
+        start = r[1]
+        end = r[2]
+        ns = bwo.values(chrom, start, end)
+        ns = np.nan_to_num(ns)
+        noise.append( np.sum(ns)/len( ns ) )
+    noise = np.mean(noise)
     s = {}
     for r in tqdm(rs):
         chrom = r[0]
@@ -113,7 +199,10 @@ def quant(rs,bwf):
         rid = f"{chrom}:{start}-{end}"
         ns = bwo.values(chrom, start, end)
         ns = np.nan_to_num(ns)
-        s[ rid ] = np.sum(ns)/len( ns )
+        ns = np.sum(ns)/len(ns)
+        if ns == 0:
+            ns = noise
+        s[ rid ] = ns
     bwo.close()
     s = pd.Series(s)
     return s
@@ -252,16 +341,26 @@ def patrol(r, c, t, o, lc, lt, pcut=0.01 ):
     if not os.path.exists(od):
         os.makedirs(od, exist_ok=True)
 
-    #step 1 read reference peaks/regions
+    #step 1 read reference peaks/regions; background regions were used to get the noise level to avoid signal region log2(0)
     rs = readBed(r)
+    rs, bgs = getFgBgs(rs)
 
     #step 2 quantify features 
     rprint(f"[{o}] Step 1: quantify {lc} sample")
-    sc = quant(rs, c)
+    sc = quant(rs, bgs, c)
     rprint(f"[{o}] Step 1: quantify {lt} sample")
-    st = quant(rs, t)
+    st = quant(rs, bgs, t)
     
     #step 3 perform two-passes MD test
+    rprint(f"[{o}] Step 2: perform the two-passes MD test")
+    sc2 = np.log2(sc)
+    st2 = np.log2(st)
+    a = (sc2+st2)/2
+    m = st2 - sc2
+    data = pd.DataFrame({"m":m, "a":a})
+    dis, ps = twoPassesMDTest(data, pcut=pcut)
+    nps = ps[ps<pcut]
+    print(data.shape, nps.shape)
 
     #finished
     end = datetime.now()
