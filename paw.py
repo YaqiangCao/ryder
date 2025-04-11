@@ -3,14 +3,31 @@
 """
 PAW algorithm for cross-sample ChIP-seq/DNase-seq/ATAC-seq normalization with internal control. 
 
-2025-04-04: init
-2025-04-09: revised and basically finished
-2025-04-11: revising by introducing noise remove with MD test in the first step for internal reference, then based on this to do normalization.
+Normalizes ChIP-seq, DNase-seq, or ATAC-seq data between a target sample and a control/reference sample using internal reference regions (e.g., housekeeping gene TSSs, conserved CTCF sites) assumed to be stable across conditions.
+
+The algorithm involves:
+1. Identifying stable reference regions by removing outliers using Mahalanobis distance.
+2. Defining foreground (reference) and background regions.
+3. Calculating initial QC metrics (signal-to-noise, background levels).
+4. Estimating a scaling factor for background noise.
+5. Estimating linear transformation parameters (alpha, beta) for signal regions after log2 transformation.
+6. Training a Gaussian Mixture Model (GMM) to distinguish signal from noise in the target sample based on reference/background regions.
+7. Applying normalization to the target BigWig file:
+    - Noise regions are scaled by the background factor.
+    - Signal regions are transformed using the estimated alpha and beta on log2-scaled data, then converted back.
+
+Assumptions:
+    - Input BigWig files are pre-normalized (e.g., to RPM, CPM).
+    - Provided reference regions contain a sufficient number of stable sites.
+History:
+2025-04-04: Initial version
+2025-04-09: Revised and basically finished
+2025-04-11: Introduced Mahalanobis distance test for outlier removal in reference regions. 
 """
 
 __author__ = "CAO Yaqiang"
 __date__ = "2025-04-04"
-__modified__ = ""
+__modified__ = "2025-04-11"
 __email__ = "caoyaqiang0410@gmail.com"
 
 #sys library
