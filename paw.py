@@ -262,7 +262,7 @@ def showSig(regions, control_bw, treatment_bw, out_prefix, title="",
     ax.set_xlabel("distance from reference center")
     ax.set_title(title)
     ax.set_xlim([-int(ext / 2), int(ext / 2) + 1])
-    ax.legend(frameon=False, markerscale=0)
+    ax.legend(frameon=False, markerscale=0, labelcolor=[colors[0], colors[1]])
     pylab.savefig(out_prefix + ".pdf")
 
 
@@ -286,7 +286,7 @@ def plotBinSig(ax, x, y1, y2, label1, label2, xlabel, ylabel, title):
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(title)
-    ax.legend(frameon=False, markerscale=0)
+    ax.legend(frameon=False, markerscale=0, labelcolor=[colors[0], colors[1]])
     return ax
 
 
@@ -381,7 +381,7 @@ def estFit(fg_regions, ref_bw, tgt_bw, bgRef, bgTgt, bg_sf, out_prefix,
     ax = axs[0]
     sns.kdeplot(refS, label=refLabel, ax=ax, fill=True, color=colors[0])
     sns.kdeplot(tgtS, label=tgtLabel, ax=ax, fill=True, color=colors[1])
-    ax.legend()
+    ax.legend(frameon=False, markerscale=0, labelcolor=[colors[0], colors[1]])
     ax.set_xlabel("log2(signal)")
     ax.set_title("signal distribution")
 
@@ -408,7 +408,7 @@ def estFit(fg_regions, ref_bw, tgt_bw, bgRef, bgTgt, bg_sf, out_prefix,
     ax = axs[2]
     sns.kdeplot(refS, label=refLabel, ax=ax, fill=True, color=colors[0])
     sns.kdeplot(tgt_scaled, label=tgtLabel, ax=ax, fill=True, color=colors[1])
-    ax.legend()
+    ax.legend(frameon=False, markerscale=0, labelcolor=[colors[0], colors[1]])
     ax.set_xlabel("log2(signal)")
     ax.set_title("signal distribution after correction")
 
@@ -473,7 +473,7 @@ def getGmm(fg_regions, bg_regions, bw_filepath, ax, title, ext=5000, bins=10):
     means = gmm.means_.reshape(-1)
     weights = gmm.weights_
 
-    ax.legend()
+    ax.legend(frameon=False, markerscale=0)
     ax.set_xlabel("log2(signal)")
     ax.set_title(title + "\n" + "means:%.3f, %.3f\nweights:%.3f, %.3f" %
                  (means[0], means[1], weights[0], weights[1]))
@@ -857,6 +857,3 @@ def paw(r, c, t, o, lc, lt, ext, csf, p):
 if __name__ == "__main__":
     paw()
 
-
-if __name__ == "__main__":
-    paw()
