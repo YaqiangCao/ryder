@@ -331,7 +331,7 @@ def showMDMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, 
     down_idx = m_valid[m_valid < 0].index
     ax.scatter(a[down_idx], m[down_idx], s=1, color=colors[0], alpha=0.8, label=f"{len(down_idx)} {control_label} regions")
     ax.scatter(a[up_idx], m[up_idx], s=1, color=colors[1], alpha=0.8, label=f"{len(up_idx)} {treatment_label} regions")
-    leg = ax.legend(frameon=False, markerscale=0, labelcolor=[colors[0], colors[1]])
+    leg = ax.legend(frameon=False, markerscale=0, labelcolor=["gray",colors[0], colors[1]])
     for handle in leg.legendHandles:
         handle._sizes = [10]
     ax.axhline(0, color="gray", linestyle="--")
@@ -368,7 +368,7 @@ def showFCMA(m, a, control_label, treatment_label, out_prefix, noise, mcut=1):
     down_idx = m_valid[m_valid < -mcut].index
     ax.scatter(a[down_idx], m[down_idx], s=1, color=colors[0], alpha=0.8, label=f"{len(down_idx)} {control_label} regions")
     ax.scatter(a[up_idx], m[up_idx], s=1, color=colors[1], alpha=0.8, label=f"{len(up_idx)} {treatment_label} regions")
-    leg=ax.legend(frameon=False, markerscale=0, labelcolor=[colors[0], colors[1]])
+    leg = ax.legend(frameon=False, markerscale=0, labelcolor=["gray",colors[0], colors[1]])
     for handle in leg.legendHandles:
         handle._sizes = [10]
     ax.axhline(0, color="gray", linestyle="--")
@@ -478,9 +478,9 @@ def showSig(regions, control_bw, treatment_bw, out_prefix, title="",
 )
 @click.option(
     "-pcut",
-    default=0.05,
+    default=0.01,
     type=float,
-    help="P-value cutoff for the two-pass Mahalanobis distance test. Regions with p-values below this cutoff are considered outliers. Default is 0.05."
+    help="P-value cutoff for the two-pass Mahalanobis distance test. Regions with p-values below this cutoff are considered outliers. Default is 0.01."
 )
 @click.option(
     "-mode",
@@ -562,6 +562,7 @@ def patrol(r, c, t, o, lc, lt, pcut,mode):
     rprint(f"[{o}] Step 4: Generating aggregated plots of detected differential features")
     for k, vs in rs.items():
         showSig(vs, c, t, o + "_" + k +"_agg", title=f"{k} enriched regions \n (n=%s)"%len(vs), refLabel=lc, tgtLabel=lt)
+    showSig(regions, c, t, o + "_all_agg", title=f"all regions \n (n=%s)"%len(regions), refLabel=lc, tgtLabel=lt)
 
     end_time = datetime.now()
     rprint(f"{script_name} job finished. Used time: {end_time - start_time}")
