@@ -2,17 +2,15 @@
 # --coding:utf-8--
 
 """
-PATROL algorithm for cross-sample normalized ChIP-seq/DNase-seq/ATAC-seq differential features detection.
+PATROL algorithm for cross-sample normalized ChIP-seq/DNase-seq/ATAC-seq differential peaks detection.
 
-This tool detects highly variable features by performing a two-pass Mahalanobis distance test on normalized signal data. The algorithm uses internal references from DNase-seq, ATAC-seq, ChIP-seq, and MNase-seq experiments.
+This tool detects highly variable features by performing a two-pass Mahalanobis distance test on normalized 
+signal data. The algorithm uses internal references from DNase-seq, ATAC-seq, ChIP-seq, and MNase-seq experiments.
 
+Author: CAO Yaqiang
+Date: 2025-04-09
+Email: caoyaqiang0410@gmail.com
 """
-
-__author__ = "CAO Yaqiang"
-__date__ = "2025-04-04"
-__modified__ = ""
-__email__ = "caoyaqiang0410@gmail.com"
-
 
 #sys
 import os
@@ -26,7 +24,7 @@ import pyBigWig
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from scipy.stats import chi2, poisson
+from scipy.stats import chi2
 from joblib import Parallel, delayed
 
 # Plotting libraries and settings
@@ -296,24 +294,6 @@ def twoPassesMDTest(data, pcut=0.01):
     return distances, p_values
 
 
-def getPoissonP(con,trt,tot=20):
-    """
-    Get the Poisson test p-value. 
-
-    : param con: control sample signals in RPM
-    : param trt: treatment sample signals in RPM
-    : return ps: poisson test p-values
-    """
-    ps = {}
-    for i in con.index:
-        _c = int( con[i] * tot )
-        _t = int( trt[i] * tot )
-        c = min(_c,_t)
-        t = max(_c,_t)
-        p = max([1e-300, poisson.sf(t - 1.0, c)])
-        ps[i] = p
-    return pd.Series(ps)
-
 def idx2peaks(inds):
     peaks = []
     for ind in inds:
@@ -322,8 +302,6 @@ def idx2peaks(inds):
         end_coord = int(ind.split(":")[1].split("-")[1])
         peaks.append([chrom, start_coord, end_coord])
     return peaks
-
-
 
 def showMDMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, pcut=0.01):
     """
@@ -357,8 +335,7 @@ def showMDMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, 
     for handle in leg.legendHandles:
         handle._sizes = [10]
     ax.axhline(0, color="gray", linestyle="--")
-    ax.axvline(noise, color="gray", linestyle="--")
-    ax.set_title(f"Signal Comparison\nMahalanobis P-value < {pcut} \n average > {noise}")
+    ax.set_title(f"Signal Comparison\nMahalanobis P-value < {pcut}")
     ax.set_xlabel(f"log2({treatment_label}) + log2({control_label})")
     ax.set_ylabel(f"log2({treatment_label}) - log2({control_label})")
     pylab.savefig(out_prefix + "_MD_MA.pdf")
@@ -366,16 +343,15 @@ def showMDMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, 
     return rs
 
 
-def showFCMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, mcut=1, pcut=pcut):
+def showFCMA(m, a, control_label, treatment_label, out_prefix, noise, mcut=1):
     """
-    Generate and save an MA plot showing differential signal (M) versus average signal (A) and use cutoff of MA as 1 and poisson p-value cutoff.
+    Generate and save an MA plot showing differential signal (M) versus average signal (A) and use cutoff of MA as 1.
 
 
     :param m: pandas Series, log2 fold-change (treatment - control).
     :param a: pandas Series, average log2 signal.
     :param control_label: str, label for control sample.
     :param treatment_label: str, label for treatment sample.
-    :param p_values: pandas Series, p-values from the Poisson test. 
     :param out_prefix: str, prefix for the output plot file.
     :param noise: float, estimated noise level for scaling.
     :param mcut: float, fold change cutoff to highlight significant regions.
@@ -385,8 +361,7 @@ def showFCMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, 
     ax.scatter(a, m, s=0.5, color="gray", alpha=0.6, label=f"Total {len(a)} regions")
     
     # Identify regions passing the cutoff and above noise
-    significant = p_values[p_values <= pcut].index
-    valid = a[significant][a[significant] > noise].index
+    valid = a[a > noise].index
     m_valid = m[valid]
     # Split based on sign of M (up- or down-regulated)
     up_idx = m_valid[m_valid > mcut].index
@@ -399,8 +374,7 @@ def showFCMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, 
     ax.axhline(0, color="gray", linestyle="--")
     ax.axhline(mcut, color=colors[1], linestyle="--")
     ax.axhline(-mcut, color=colors[0], linestyle="--")
-    ax.axvline(noise, color="gray", linestyle="--")
-    ax.set_title(f"Signal Comparison\n log2(fold change) > {mcut} \n average > {noise}")
+    ax.set_title(f"Signal Comparison\n log2(fold change) > {mcut}")
     ax.set_xlabel(f"log2({treatment_label}) + log2({control_label})")
     ax.set_ylabel(f"log2({treatment_label}) - log2({control_label})")
     pylab.savefig(out_prefix + "_FC_MA.pdf")
@@ -506,19 +480,19 @@ def showSig(regions, control_bw, treatment_bw, out_prefix, title="",
     "-pcut",
     default=0.01,
     type=float,
-    help="P-value cutoff for the two-pass Mahalanobis distance test if -mode is MD or Poisson test if -mode is FC. Regions with p-values below this cutoff are considered significant variable features. Default is 0.01."
+    help="P-value cutoff for the two-pass Mahalanobis distance test. Regions with p-values below this cutoff are considered outliers. Default is 0.01."
 )
 @click.option(
     "-mode",
     default="MD",
     type=click.Choice(["MD","FC"],case_sensitive=False),
-    help="Variable feature detection method, default is MD. MD is based on a two-pass Mahalanobis distance test and is the default option. Chose FC to perfome a traditional fold chage > 2 selection using the average cutoff detected from MD method and perform the Poisson test.",
+    help="Variable feature detection method, default is MD. MD is based on a two-pass Mahalanobis distance test and is the default option. Chose FC to perfome a traditional fold chage > 2 selection using the average cutoff detected from MD method and ignore p-value cutoff.",
 )
 def patrol(r, c, t, o, lc, lt, pcut,mode):
     """
     PATROL: Sequencing Data Variable Features Detection Algorithm.
 
-    This tool detects highly variable genomic features by performing a two-pass Mahalanobis distance test or Poisson test on normalized ChIP-seq/DNase-seq/ATAC-seq data. It quantifies signals over specified regions, estimates background noise, and identifies differential signals using statistical tests.
+    This tool detects highly variable genomic features by performing a two-pass Mahalanobis distance test on normalized ChIP-seq/DNase-seq/ATAC-seq data. It quantifies signals over specified regions, estimates background noise, and identifies differential signals using statistical tests.
 
     Examples:
       $ patrol.py -r regions.bed -c control.bw -t treatment.bw -o results_diff
@@ -555,13 +529,9 @@ def patrol(r, c, t, o, lc, lt, pcut,mode):
     md_data = pd.DataFrame({"m": M, "a": A})
     
     # Step 4: Perform two-pass Mahalanobis distance test to detect outliers
-    rprint(f"[{o}] Step 2: Performing two-pass Mahalanobis distance test with pcut = {pcut} to get average cutoff")
+    rprint(f"[{o}] Step 2: Performing two-pass Mahalanobis distance test with pcut = {pcut}")
     distances, p_values = twoPassesMDTest(md_data, pcut=pcut)
     
-    # Step 5: Perform Poisson test 
-    rprint(f"[{o}] Step 3: Performing the Poisson test to compare {lc} vs {lt}")
-    pp_values = getPoissonP(control_signals, treatment_signals)
-
     # Save statistics to file
     stats_data = {
         lc: control_signals, 
@@ -569,20 +539,19 @@ def patrol(r, c, t, o, lc, lt, pcut,mode):
         f"log2 fold change ({lt}/{lc})": M, 
         "average": A,
         "MD": distances, 
-        "Chi-squared P-value": p_values,
-        "Poisson P-value":pp_values,
+        "Chi-squared P-value": p_values
     }
     stats_df = pd.DataFrame(stats_data)
     stats_df.to_csv(f"{o}_stat.txt", sep="\t", index_label="regionId")
-    rprint(f"[{o}] Step 4: Statistical results saved to {o}_stat.txt.")
+    rprint(f"[{o}] Step 2: Statistical results saved to {o}_stat.txt.")
 
     # Step 5: Generate and save MA plot of differential signals
     combined_noise = A[p_values[p_values>pcut].index].min()
-    rprint(f"[{o}] Step 5: Generating MA plot of detected differential features and save them")
     if mode == "MD":
+        rprint(f"[{o}] Step 3: Generating MA plot of detected differential features and save them")
         rs = showMDMA(M, A, lc, lt, p_values, o, combined_noise, pcut=pcut)
     else:
-        rs = showFCMA(M, A, lc, lt, pp_values, o, combined_noise, pcut=pcut)
+        rs = showFCMA(M, A, lc, lt, o, combined_noise)
     for k,vs in rs.items():
         with open(f"{o}_{k}.bed","w") as fo:
             for v in vs:
@@ -590,7 +559,7 @@ def patrol(r, c, t, o, lc, lt, pcut,mode):
                 fo.write("\t".join(v)+"\n")
 
     # Step 6: Show aggregated differential peaks 
-    rprint(f"[{o}] Step 6: Generating aggregated plots of detected differential features")
+    rprint(f"[{o}] Step 4: Generating aggregated plots of detected differential features")
     for k, vs in rs.items():
         showSig(vs, c, t, o + "_" + k +"_agg", title=f"{k} enriched regions \n (n=%s)"%len(vs), refLabel=lc, tgtLabel=lt)
     showSig(regions, c, t, o + "_all_agg", title=f"all regions \n (n=%s)"%len(regions), refLabel=lc, tgtLabel=lt)
