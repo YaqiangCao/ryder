@@ -366,7 +366,7 @@ def showMDMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, 
     return rs
 
 
-def showFCMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, mcut=1, pcut=pcut):
+def showFCMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, mcut=1, pcut=0.01):
     """
     Generate and save an MA plot showing differential signal (M) versus average signal (A) and use cutoff of MA as 1 and poisson p-value cutoff.
 
@@ -569,8 +569,8 @@ def patrol(r, c, t, o, lc, lt, pcut,mode):
         f"log2 fold change ({lt}/{lc})": M, 
         "average": A,
         "MD": distances, 
-        "Chi-squared P-value": p_values,
-        "Poisson P-value":pp_values,
+        "Chi-squared P-value (MD)": p_values,
+        "Poisson P-value (MA)":pp_values,
     }
     stats_df = pd.DataFrame(stats_data)
     stats_df.to_csv(f"{o}_stat.txt", sep="\t", index_label="regionId")
