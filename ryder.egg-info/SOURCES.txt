@@ -1,6 +1,8 @@
 .gitignore
 README.md
 setup.py
+tmp
+dist/ryder-1.0.0-py3.6.egg
 dist/ryder-1.0.0-py3.9.egg
 ryder.egg-info/PKG-INFO
 ryder.egg-info/SOURCES.txt

@@ -822,18 +822,20 @@ def normTgtBw(bw_filepath,
 )
 def paw(r, c, t, o, lc, lt, ext, csf, p):
     """
-    PAW: Cross-sample ChIP-seq/DNase-seq/ATAC-seq normalization with internal reference.
+    PAW: Cross-sample Epigenome Data Normalization with Internal Reference Algorithm.
     
-    This tool normalizes a target sample (treatment) to a reference sample (control) at base-pair resolution.
+    This script normalizes a target sample (treatment/replicate 2) to a reference sample (control/replicate 1) at base-pair resolution.
 
-    It relies on the assumption that:
+    It relies on the assumptions that:
 
       1. Background noise levels are similar between the samples.
 
       2. Specific regions (e.g., conserved CTCF sites or transcription start sites) have similar signal-to-noise ratios.
-      
+     
+
     Prior to running PAW, ensure that the input bigWig files are pre-normalized to Reads Per Million (RPM).
-    
+   
+
     Examples:
 
       1. Typical pair-wise comparison:
@@ -844,6 +846,7 @@ def paw(r, c, t, o, lc, lt, ext, csf, p):
       2. Replicate alignment:
 
          $ paw.py -r peaks.bed -c rep1.bw -t rep2.bw -o results/test
+
     """
     start_time = datetime.now()
     script_name = os.path.basename(__file__)
@@ -856,7 +859,7 @@ def paw(r, c, t, o, lc, lt, ext, csf, p):
         if not os.path.isfile(filepath):
             rprint(f"ERROR! Input file {filepath} does not exist. Return!")
     output_dir = os.path.dirname(o)
-    if not os.path.exists(output_dir):
+    if output_dir !="" and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
     # Step 1: Read reference peaks from BED file

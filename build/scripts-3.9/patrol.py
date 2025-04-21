@@ -615,7 +615,7 @@ def patrol(r, c, t, o, lc, lt, pcut, mode):
             rprint(f"ERROR! Input file {filepath} does not exist. Exiting.")
             return
     output_dir = os.path.dirname(o)
-    if not os.path.exists(output_dir):
+    if output_dir !="" and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
     # Step 1: Read regions of interest and generate background regions to estimate noise
