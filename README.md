@@ -30,7 +30,7 @@ bedGraphToBigWig
 ```
 git clone --depth=1 https://github.com/YaqiangCao/ryder
 cd ryder
-python3 setup.py install
+pip install ./
 ```
 
 ---
