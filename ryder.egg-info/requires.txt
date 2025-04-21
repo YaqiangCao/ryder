@@ -1,0 +1,10 @@
+joblib
+numpy
+seaborn
+pandas
+scipy
+scikit-learn
+matplotlib
+tqdm
+pyBigWig
+click
