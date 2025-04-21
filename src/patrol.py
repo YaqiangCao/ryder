@@ -1,21 +1,22 @@
 #!/usr/bin/env python
 # --coding:utf-8--
+"""
+PATROL algorithm for cross-sample normalized ChIP-seq/DNase-seq/ATAC-seq differential features detection.
+
+This tool detects highly variable features by performing a two-pass Mahalanobis distance test on normalized signal data. The algorithm uses internal references from DNase-seq, ATAC-seq, ChIP-seq, and MNase-seq experiments.
 
 """
-PATROL algorithm for cross-sample normalized ChIP-seq/DNase-seq/ATAC-seq differential peaks detection.
 
-This tool detects highly variable features by performing a two-pass Mahalanobis distance test on normalized 
-signal data. The algorithm uses internal references from DNase-seq, ATAC-seq, ChIP-seq, and MNase-seq experiments.
-
-Author: CAO Yaqiang
-Date: 2025-04-09
-Email: caoyaqiang0410@gmail.com
-"""
+__author__ = "CAO Yaqiang"
+__date__ = "2025-04-04"
+__modified__ = ""
+__email__ = "caoyaqiang0410@gmail.com"
 
 #sys
 import os
 import warnings
 from datetime import datetime
+
 warnings.filterwarnings("ignore")
 
 #3rd
@@ -24,14 +25,16 @@ import pyBigWig
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from scipy.stats import chi2
+from scipy.stats import chi2, poisson
 from joblib import Parallel, delayed
 
 # Plotting libraries and settings
 import matplotlib as mpl
+
 mpl.use("pdf")
 import seaborn as sns
 import pylab
+
 mpl.rcParams["pdf.fonttype"] = 42
 mpl.rcParams["figure.figsize"] = (3.2, 2.2)
 mpl.rcParams["savefig.transparent"] = True
@@ -294,6 +297,25 @@ def twoPassesMDTest(data, pcut=0.01):
     return distances, p_values
 
 
+def getPoissonP(con, trt, tot=20):
+    """
+    Get the Poisson test p-value. 
+
+    : param con: control sample signals in RPM
+    : param trt: treatment sample signals in RPM
+    : return ps: poisson test p-values
+    """
+    ps = {}
+    for i in con.index:
+        _c = int(con[i] * tot)
+        _t = int(trt[i] * tot)
+        c = min(_c, _t)
+        t = max(_c, _t)
+        p = max([1e-300, poisson.sf(t - 1.0, c)])
+        ps[i] = p
+    return pd.Series(ps)
+
+
 def idx2peaks(inds):
     peaks = []
     for ind in inds:
@@ -303,7 +325,15 @@ def idx2peaks(inds):
         peaks.append([chrom, start_coord, end_coord])
     return peaks
 
-def showMDMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, pcut=0.01):
+
+def showMDMA(m,
+             a,
+             control_label,
+             treatment_label,
+             p_values,
+             out_prefix,
+             noise,
+             pcut=0.01):
     """
     Generate and save an MA plot showing differential signal (M) versus average signal (A).
 
@@ -320,8 +350,13 @@ def showMDMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, 
     """
     fig, ax = pylab.subplots()
     # Plot all regions in gray
-    ax.scatter(a, m, s=0.5, color="gray", alpha=0.6, label=f"Total {len(a)} regions")
-    
+    ax.scatter(a,
+               m,
+               s=0.5,
+               color="gray",
+               alpha=0.6,
+               label=f"Total {len(a)} regions")
+
     # Identify regions passing the cutoff and above noise
     significant = p_values[p_values <= pcut].index
     valid = a[significant][a[significant] > noise].index
@@ -329,61 +364,117 @@ def showMDMA(m, a, control_label, treatment_label, p_values, out_prefix, noise, 
     # Split based on sign of M (up- or down-regulated)
     up_idx = m_valid[m_valid > 0].index
     down_idx = m_valid[m_valid < 0].index
-    ax.scatter(a[down_idx], m[down_idx], s=1, color=colors[0], alpha=0.8, label=f"{len(down_idx)} {control_label} regions")
-    ax.scatter(a[up_idx], m[up_idx], s=1, color=colors[1], alpha=0.8, label=f"{len(up_idx)} {treatment_label} regions")
-    leg = ax.legend(frameon=False, markerscale=0, labelcolor=["gray",colors[0], colors[1]])
+    ax.scatter(a[down_idx],
+               m[down_idx],
+               s=1,
+               color=colors[0],
+               alpha=0.8,
+               label=f"{len(down_idx)} {control_label} regions")
+    ax.scatter(a[up_idx],
+               m[up_idx],
+               s=1,
+               color=colors[1],
+               alpha=0.8,
+               label=f"{len(up_idx)} {treatment_label} regions")
+    leg = ax.legend(frameon=False,
+                    markerscale=0,
+                    labelcolor=["gray", colors[0], colors[1]])
     for handle in leg.legendHandles:
         handle._sizes = [10]
     ax.axhline(0, color="gray", linestyle="--")
-    ax.set_title(f"Signal Comparison\nMahalanobis P-value < {pcut}")
+    ax.axvline(noise, color="gray", linestyle="--")
+    ax.set_title(
+        f"Signal Comparison\nMahalanobis P-value < {pcut} \n average > {noise}"
+    )
     ax.set_xlabel(f"log2({treatment_label}) + log2({control_label})")
     ax.set_ylabel(f"log2({treatment_label}) - log2({control_label})")
     pylab.savefig(out_prefix + "_MD_MA.pdf")
-    rs = {control_label: idx2peaks(down_idx), treatment_label: idx2peaks(up_idx)}
+    rs = {
+        control_label: idx2peaks(down_idx),
+        treatment_label: idx2peaks(up_idx)
+    }
     return rs
 
 
-def showFCMA(m, a, control_label, treatment_label, out_prefix, noise, mcut=1):
+def showFCMA(m,
+             a,
+             control_label,
+             treatment_label,
+             p_values,
+             out_prefix,
+             noise,
+             mcut=1,
+             pcut=0.01):
     """
-    Generate and save an MA plot showing differential signal (M) versus average signal (A) and use cutoff of MA as 1.
+    Generate and save an MA plot showing differential signal (M) versus average signal (A) and use cutoff of MA as 1 and poisson p-value cutoff.
 
 
     :param m: pandas Series, log2 fold-change (treatment - control).
     :param a: pandas Series, average log2 signal.
     :param control_label: str, label for control sample.
     :param treatment_label: str, label for treatment sample.
+    :param p_values: pandas Series, p-values from the Poisson test. 
     :param out_prefix: str, prefix for the output plot file.
     :param noise: float, estimated noise level for scaling.
     :param mcut: float, fold change cutoff to highlight significant regions.
     """
     fig, ax = pylab.subplots()
     # Plot all regions in gray
-    ax.scatter(a, m, s=0.5, color="gray", alpha=0.6, label=f"Total {len(a)} regions")
-    
+    ax.scatter(a,
+               m,
+               s=0.5,
+               color="gray",
+               alpha=0.6,
+               label=f"Total {len(a)} regions")
+
     # Identify regions passing the cutoff and above noise
-    valid = a[a > noise].index
+    significant = p_values[p_values <= pcut].index
+    valid = a[significant][a[significant] > noise].index
     m_valid = m[valid]
     # Split based on sign of M (up- or down-regulated)
     up_idx = m_valid[m_valid > mcut].index
     down_idx = m_valid[m_valid < -mcut].index
-    ax.scatter(a[down_idx], m[down_idx], s=1, color=colors[0], alpha=0.8, label=f"{len(down_idx)} {control_label} regions")
-    ax.scatter(a[up_idx], m[up_idx], s=1, color=colors[1], alpha=0.8, label=f"{len(up_idx)} {treatment_label} regions")
-    leg = ax.legend(frameon=False, markerscale=0, labelcolor=["gray",colors[0], colors[1]])
+    ax.scatter(a[down_idx],
+               m[down_idx],
+               s=1,
+               color=colors[0],
+               alpha=0.8,
+               label=f"{len(down_idx)} {control_label} regions")
+    ax.scatter(a[up_idx],
+               m[up_idx],
+               s=1,
+               color=colors[1],
+               alpha=0.8,
+               label=f"{len(up_idx)} {treatment_label} regions")
+    leg = ax.legend(frameon=False,
+                    markerscale=0,
+                    labelcolor=["gray", colors[0], colors[1]])
     for handle in leg.legendHandles:
         handle._sizes = [10]
     ax.axhline(0, color="gray", linestyle="--")
     ax.axhline(mcut, color=colors[1], linestyle="--")
     ax.axhline(-mcut, color=colors[0], linestyle="--")
-    ax.set_title(f"Signal Comparison\n log2(fold change) > {mcut}")
+    ax.axvline(noise, color="gray", linestyle="--")
+    ax.set_title(
+        f"Signal Comparison\n log2(fold change) > {mcut} \n average > {noise}")
     ax.set_xlabel(f"log2({treatment_label}) + log2({control_label})")
     ax.set_ylabel(f"log2({treatment_label}) - log2({control_label})")
     pylab.savefig(out_prefix + "_FC_MA.pdf")
-    rs = {control_label: idx2peaks(down_idx), treatment_label: idx2peaks(up_idx)}
+    rs = {
+        control_label: idx2peaks(down_idx),
+        treatment_label: idx2peaks(up_idx)
+    }
     return rs
 
 
-def showSig(regions, control_bw, treatment_bw, out_prefix, title="",
-            refLabel="ref", tgtLabel="tgt", ext=10000):
+def showSig(regions,
+            control_bw,
+            treatment_bw,
+            out_prefix,
+            title="",
+            refLabel="ref",
+            tgtLabel="tgt",
+            ext=10000):
     """
     Plot and save the averaged signal around the center of regions for both control and treatment.
 
@@ -407,7 +498,8 @@ def showSig(regions, control_bw, treatment_bw, out_prefix, title="",
         control_vals = bw_control.values(chrom, center - ext, center + ext + 1)
         control_vals = np.nan_to_num(control_vals)
         control_signal += control_vals
-        treatment_vals = bw_treatment.values(chrom, center - ext, center + ext + 1)
+        treatment_vals = bw_treatment.values(chrom, center - ext,
+                                             center + ext + 1)
         treatment_vals = np.nan_to_num(treatment_vals)
         treatment_signal += treatment_vals
     control_signal /= len(regions)
@@ -431,29 +523,26 @@ def showSig(regions, control_bw, treatment_bw, out_prefix, title="",
     "-r",
     required=True,
     type=str,
-    help=(
-        "Path to a BED format file specifying regions of interest for differential analysis. "
-        "Each region must have at least three columns: chromosome, start, and end. "
-        "Example: regions.bed"
-    ),
+    help=
+    ("Path to a BED format file specifying regions of interest for differential analysis. "
+     "Each region must have at least three columns: chromosome, start, and end. "
+     "Example: regions.bed"),
 )
 @click.option(
     "-o",
     required=True,
     type=str,
-    help=(
-        "Output file prefix. Several output files (statistics and plots) will be generated using this prefix. "
-        "Example: results/test"
-    ),
+    help=
+    ("Output file prefix. Several output files (statistics and plots) will be generated using this prefix. "
+     "Example: results/test"),
 )
 @click.option(
     "-c",
     required=True,
     type=str,
-    help=(
-        "Path to the control sample bigWig file. This file should be normalized (e.g., to RPM). "
-        "Example: control.bw"
-    ),
+    help=
+    ("Path to the control sample bigWig file. This file should be normalized (e.g., to RPM). "
+     "Example: control.bw"),
 )
 @click.option(
     "-lc",
@@ -465,10 +554,9 @@ def showSig(regions, control_bw, treatment_bw, out_prefix, title="",
     "-t",
     required=True,
     type=str,
-    help=(
-        "Path to the treatment sample bigWig file. This file should be normalized (e.g., to RPM). "
-        "Example: treatment.bw"
-    ),
+    help=
+    ("Path to the treatment sample bigWig file. This file should be normalized (e.g., to RPM). "
+     "Example: treatment.bw"),
 )
 @click.option(
     "-lt",
@@ -480,19 +568,21 @@ def showSig(regions, control_bw, treatment_bw, out_prefix, title="",
     "-pcut",
     default=0.01,
     type=float,
-    help="P-value cutoff for the two-pass Mahalanobis distance test. Regions with p-values below this cutoff are considered outliers. Default is 0.01."
+    help=
+    "P-value cutoff for the two-pass Mahalanobis distance test if -mode is MD or Poisson test if -mode is FC. Regions with p-values below this cutoff are considered significant variable features. Default is 0.01."
 )
 @click.option(
     "-mode",
     default="MD",
-    type=click.Choice(["MD","FC"],case_sensitive=False),
-    help="Variable feature detection method, default is MD. MD is based on a two-pass Mahalanobis distance test and is the default option. Chose FC to perfome a traditional fold chage > 2 selection using the average cutoff detected from MD method and ignore p-value cutoff.",
+    type=click.Choice(["MD", "FC"], case_sensitive=False),
+    help=
+    "Variable feature detection method, default is MD. MD is based on a two-pass Mahalanobis distance test and is the default option. Chose FC to perfome a traditional fold chage > 2 selection using the average cutoff detected from MD method and perform the Poisson test.",
 )
-def patrol(r, c, t, o, lc, lt, pcut,mode):
+def patrol(r, c, t, o, lc, lt, pcut, mode):
     """
     PATROL: Sequencing Data Variable Features Detection Algorithm.
 
-    This tool detects highly variable genomic features by performing a two-pass Mahalanobis distance test on normalized ChIP-seq/DNase-seq/ATAC-seq data. It quantifies signals over specified regions, estimates background noise, and identifies differential signals using statistical tests.
+    This tool detects highly variable genomic features by performing a two-pass Mahalanobis distance test or Poisson test on normalized ChIP-seq/DNase-seq/ATAC-seq data. It quantifies signals over specified regions, estimates background noise, and identifies differential signals using statistical tests.
 
     Examples:
       $ patrol.py -r regions.bed -c control.bw -t treatment.bw -o results_diff
@@ -500,7 +590,9 @@ def patrol(r, c, t, o, lc, lt, pcut,mode):
     """
     start_time = datetime.now()
     script_name = os.path.basename(__file__)
-    rprint(f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -pcut {pcut}")
+    rprint(
+        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -pcut {pcut}"
+    )
 
     # Step 0: Check required input files exist
     for filepath in [r, c, t]:
@@ -514,55 +606,79 @@ def patrol(r, c, t, o, lc, lt, pcut,mode):
     # Step 1: Read regions of interest and generate background regions to estimate noise
     regions = readBed(r)
     fg_regions, bg_regions = getFgBgs(regions)
-    
+
     # Step 2: Quantify signals for control and treatment samples
     rprint(f"[{o}] Step 1: Quantifying signal for control sample ({lc})")
     control_signals, control_noise = quant(fg_regions, bg_regions, c)
     rprint(f"[{o}] Step 1: Quantifying signal for treatment sample ({lt})")
     treatment_signals, treatment_noise = quant(fg_regions, bg_regions, t)
-    
+
     # Step 3: Compute log2-transformed signals and derive M (difference) and A (average) values
     control_log = np.log2(control_signals)
     treatment_log = np.log2(treatment_signals)
     A = (control_log + treatment_log) / 2
     M = treatment_log - control_log
     md_data = pd.DataFrame({"m": M, "a": A})
-    
+
     # Step 4: Perform two-pass Mahalanobis distance test to detect outliers
-    rprint(f"[{o}] Step 2: Performing two-pass Mahalanobis distance test with pcut = {pcut}")
+    rprint(
+        f"[{o}] Step 2: Performing two-pass Mahalanobis distance test with pcut = {pcut} to get average cutoff"
+    )
     distances, p_values = twoPassesMDTest(md_data, pcut=pcut)
-    
+
+    # Step 5: Perform Poisson test
+    rprint(
+        f"[{o}] Step 3: Performing the Poisson test to compare {lc} vs {lt}")
+    pp_values = getPoissonP(control_signals, treatment_signals)
+
     # Save statistics to file
     stats_data = {
-        lc: control_signals, 
-        lt: treatment_signals, 
-        f"log2 fold change ({lt}/{lc})": M, 
+        lc: control_signals,
+        lt: treatment_signals,
+        f"log2 fold change ({lt}/{lc})": M,
         "average": A,
-        "MD": distances, 
-        "Chi-squared P-value": p_values
+        "MD": distances,
+        "Chi-squared P-value (MD)": p_values,
+        "Poisson P-value (MA)": pp_values,
     }
     stats_df = pd.DataFrame(stats_data)
     stats_df.to_csv(f"{o}_stat.txt", sep="\t", index_label="regionId")
-    rprint(f"[{o}] Step 2: Statistical results saved to {o}_stat.txt.")
+    rprint(f"[{o}] Step 4: Statistical results saved to {o}_stat.txt.")
 
     # Step 5: Generate and save MA plot of differential signals
-    combined_noise = A[p_values[p_values>pcut].index].min()
+    combined_noise = A[p_values[p_values > pcut].index].min()
+    rprint(
+        f"[{o}] Step 5: Generating MA plot of detected differential features and save them"
+    )
     if mode == "MD":
-        rprint(f"[{o}] Step 3: Generating MA plot of detected differential features and save them")
         rs = showMDMA(M, A, lc, lt, p_values, o, combined_noise, pcut=pcut)
     else:
-        rs = showFCMA(M, A, lc, lt, o, combined_noise)
-    for k,vs in rs.items():
-        with open(f"{o}_{k}.bed","w") as fo:
+        rs = showFCMA(M, A, lc, lt, pp_values, o, combined_noise, pcut=pcut)
+    for k, vs in rs.items():
+        with open(f"{o}_{k}.bed", "w") as fo:
             for v in vs:
                 v = list(map(str, v))
-                fo.write("\t".join(v)+"\n")
+                fo.write("\t".join(v) + "\n")
 
-    # Step 6: Show aggregated differential peaks 
-    rprint(f"[{o}] Step 4: Generating aggregated plots of detected differential features")
+    # Step 6: Show aggregated differential peaks
+    rprint(
+        f"[{o}] Step 6: Generating aggregated plots of detected differential features"
+    )
     for k, vs in rs.items():
-        showSig(vs, c, t, o + "_" + k +"_agg", title=f"{k} enriched regions \n (n=%s)"%len(vs), refLabel=lc, tgtLabel=lt)
-    showSig(regions, c, t, o + "_all_agg", title=f"all regions \n (n=%s)"%len(regions), refLabel=lc, tgtLabel=lt)
+        showSig(vs,
+                c,
+                t,
+                o + "_" + k + "_agg",
+                title=f"{k} enriched regions \n (n=%s)" % len(vs),
+                refLabel=lc,
+                tgtLabel=lt)
+    showSig(regions,
+            c,
+            t,
+            o + "_all_agg",
+            title=f"all regions \n (n=%s)" % len(regions),
+            refLabel=lc,
+            tgtLabel=lt)
 
     end_time = datetime.now()
     rprint(f"{script_name} job finished. Used time: {end_time - start_time}")

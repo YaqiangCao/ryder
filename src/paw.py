@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # --coding:utf-8--
-
 """
 PAW algorithm for cross-sample ChIP-seq/DNase-seq/ATAC-seq normalization with internal control. 
 
@@ -38,6 +37,7 @@ import random
 import warnings
 from glob import glob
 from datetime import datetime
+
 warnings.filterwarnings("ignore")
 
 #3rd
@@ -52,9 +52,11 @@ from sklearn.mixture import GaussianMixture as GMM
 
 # Plotting libraries and settings
 import matplotlib as mpl
+
 mpl.use("pdf")
 import seaborn as sns
 import pylab
+
 mpl.rcParams["pdf.fonttype"] = 42
 mpl.rcParams["figure.figsize"] = (3.2, 2.2)
 mpl.rcParams["savefig.transparent"] = True
@@ -196,8 +198,7 @@ def getBwSig(regions, bw_filepath, bins=100, n_jobs=2):
     :return: numpy array of signals.
     """
     signals = Parallel(n_jobs=n_jobs, backend="multiprocessing")(
-        delayed(_getBwSig)(region, bw_filepath, bins) for region in regions
-    )
+        delayed(_getBwSig)(region, bw_filepath, bins) for region in regions)
     return np.array(signals)
 
 
@@ -225,8 +226,14 @@ def mahalanobis(matrix):
 ######################################
 # Plotting and Visualization         #
 ######################################
-def showSig(regions, control_bw, treatment_bw, out_prefix, title="",
-            refLabel="ref", tgtLabel="tgt", ext=10000):
+def showSig(regions,
+            control_bw,
+            treatment_bw,
+            out_prefix,
+            title="",
+            refLabel="ref",
+            tgtLabel="tgt",
+            ext=10000):
     """
     Plot and save the averaged signal around the center of regions for both control and treatment.
 
@@ -250,7 +257,8 @@ def showSig(regions, control_bw, treatment_bw, out_prefix, title="",
         control_vals = bw_control.values(chrom, center - ext, center + ext + 1)
         control_vals = np.nan_to_num(control_vals)
         control_signal += control_vals
-        treatment_vals = bw_treatment.values(chrom, center - ext, center + ext + 1)
+        treatment_vals = bw_treatment.values(chrom, center - ext,
+                                             center + ext + 1)
         treatment_vals = np.nan_to_num(treatment_vals)
         treatment_signal += treatment_vals
     control_signal /= len(regions)
@@ -290,8 +298,14 @@ def plotBinSig(ax, x, y1, y2, label1, label2, xlabel, ylabel, title):
     return ax
 
 
-def getQc(fg_regions, bg_regions, ref_bw, tgt_bw, out_prefix,
-          refLabel="ref", tgtLabel="tgt", bins=100):
+def getQc(fg_regions,
+          bg_regions,
+          ref_bw,
+          tgt_bw,
+          out_prefix,
+          refLabel="ref",
+          tgtLabel="tgt",
+          bins=100):
     """
     Quality control: compare noise and signal-to-noise ratio between reference and target samples.
 
@@ -344,8 +358,16 @@ def getQc(fg_regions, bg_regions, ref_bw, tgt_bw, out_prefix,
     return fgRef, fgTgt, bgRef, bgTgt
 
 
-def estFit(fg_regions, ref_bw, tgt_bw, bgRef, bgTgt, bg_sf, out_prefix,
-           refLabel="ref", tgtLabel="tgt", bins=2):
+def estFit(fg_regions,
+           ref_bw,
+           tgt_bw,
+           bgRef,
+           bgTgt,
+           bg_sf,
+           out_prefix,
+           refLabel="ref",
+           tgtLabel="tgt",
+           bins=2):
     """
     Estimate the linear fit parameters between the reference and target sample signal regions.
 
@@ -403,7 +425,7 @@ def estFit(fg_regions, ref_bw, tgt_bw, bgRef, bgTgt, bg_sf, out_prefix,
     tgt_scaled = tgtS * alpha + beta
     diff_scaled = tgt_scaled - refS
     avg_scaled = (refS + tgt_scaled) / 2
-    
+
     # Plot signal distribution after correction
     ax = axs[2]
     sns.kdeplot(refS, label=refLabel, ax=ax, fill=True, color=colors[0])
@@ -416,11 +438,13 @@ def estFit(fg_regions, ref_bw, tgt_bw, bgRef, bgTgt, bg_sf, out_prefix,
     ax = axs[3]
     ax.scatter(avg_scaled, diff_scaled, s=0.1)
     if beta > 0:
-        ax.set_title("after correction M~A PCC:%.3f\n%s=%.3f%s+%.3f" %
-                     (diff_scaled.corr(avg_scaled), tgtLabel, alpha, tgtLabel, beta))
+        ax.set_title(
+            "after correction M~A PCC:%.3f\n%s=%.3f%s+%.3f" %
+            (diff_scaled.corr(avg_scaled), tgtLabel, alpha, tgtLabel, beta))
     else:
-        ax.set_title("after correction M~A PCC:%.3f\n(%s)=%.3f(%s)%.3f" %
-                     (diff_scaled.corr(avg_scaled), tgtLabel, alpha, tgtLabel, beta))
+        ax.set_title(
+            "after correction M~A PCC:%.3f\n(%s)=%.3f(%s)%.3f" %
+            (diff_scaled.corr(avg_scaled), tgtLabel, alpha, tgtLabel, beta))
     ax.axhline(0, color="gray", linestyle="--")
     ax.set_xlabel(f"A, (log2({refLabel})+log2({tgtLabel}))/2")
     ax.set_ylabel(f"M, log2({tgtLabel})-log2({refLabel})")
@@ -452,7 +476,7 @@ def getGmm(fg_regions, bg_regions, bw_filepath, ax, title, ext=5000, bins=10):
         chrom = region[0]
         center = int((region[1] + region[2]) / 2)
         nearby_regions.append([chrom, center - ext, center + ext])
-    
+
     # Get signals and apply log2 transformation on positive values only
     fg_signal = getBwSig(fg_regions, bw_filepath, bins=bins).reshape(-1)
     fg_signal = np.log2(fg_signal[fg_signal > 0])
@@ -467,7 +491,9 @@ def getGmm(fg_regions, bg_regions, bw_filepath, ax, title, ext=5000, bins=10):
     sns.kdeplot(mix_signal, label="reference region nearby", fill=False, ax=ax)
 
     # Train GMM with two components. Initialize means based on fg and bg signals.
-    gmm = GMM(n_components=2, covariance_type="full", random_state=123,
+    gmm = GMM(n_components=2,
+              covariance_type="full",
+              random_state=123,
               means_init=[[np.mean(fg_signal)], [np.mean(bg_signal)]])
     gmm.fit([[v] for v in mix_signal])
     means = gmm.means_.reshape(-1)
@@ -486,7 +512,12 @@ def getGmm(fg_regions, bg_regions, bw_filepath, ax, title, ext=5000, bins=10):
     return gmm, class_mapping
 
 
-def trainGmm(fg_regions, bg_regions, tgt_bw, out_prefix, tgtLabel="tgt", ext=5000):
+def trainGmm(fg_regions,
+             bg_regions,
+             tgt_bw,
+             out_prefix,
+             tgtLabel="tgt",
+             ext=5000):
     """
     Train a Gaussian Mixture Model (GMM) to classify background and signal regions for the target sample.
 
@@ -499,7 +530,8 @@ def trainGmm(fg_regions, bg_regions, tgt_bw, out_prefix, tgtLabel="tgt", ext=500
     :return: tuple (tgtGmm, tgt_class_mapping)
     """
     fig, ax = pylab.subplots()
-    tgtGmm, tgt_class_mapping = getGmm(fg_regions, bg_regions, tgt_bw, ax, tgtLabel, ext)
+    tgtGmm, tgt_class_mapping = getGmm(fg_regions, bg_regions, tgt_bw, ax,
+                                       tgtLabel, ext)
     pylab.savefig(out_prefix + "_4_GMM.pdf")
     return tgtGmm, tgt_class_mapping
 
@@ -649,7 +681,8 @@ def removeOutliers(refPeaks, control_bw, treatment_bw, pcut=0.1):
 ######################################
 # Normalization Functions            #
 ######################################
-def _norm(bw_filepath, chrom, gmm, gmm_class_mapping, noise, bg_sf, sig_sf_params, fout):
+def _norm(bw_filepath, chrom, gmm, gmm_class_mapping, noise, bg_sf,
+          sig_sf_params, fout):
     """
     Normalize signal values for a given chromosome and write results to an output bedGraph file.
 
@@ -680,7 +713,15 @@ def _norm(bw_filepath, chrom, gmm, gmm_class_mapping, noise, bg_sf, sig_sf_param
     bwi.close()
 
 
-def normTgtBw(bw_filepath, gmm, gmm_class_mapping, noise, bg_sf, sig_sf_params, fnOut, n_jobs=2, csf=""):
+def normTgtBw(bw_filepath,
+              gmm,
+              gmm_class_mapping,
+              noise,
+              bg_sf,
+              sig_sf_params,
+              fnOut,
+              n_jobs=2,
+              csf=""):
     """
     Normalize the target sample bigWig file and convert the output bedGraph to bigWig format.
 
@@ -701,15 +742,16 @@ def normTgtBw(bw_filepath, gmm, gmm_class_mapping, noise, bg_sf, sig_sf_params, 
     chroms = list(bwi.chroms().keys())
     bwi.close()
 
-    Parallel(n_jobs=n_jobs, backend="multiprocessing")(
-        delayed(_norm)(bw_filepath, chrom, gmm, gmm_class_mapping, noise, bg_sf, sig_sf_params,
-                       os.path.join(temp_dir, f"{chrom}.bdg"))
-        for chrom in tqdm(chroms)
-    )
+    Parallel(n_jobs=n_jobs,
+             backend="multiprocessing")(delayed(_norm)(
+                 bw_filepath, chrom, gmm, gmm_class_mapping, noise, bg_sf,
+                 sig_sf_params, os.path.join(temp_dir, f"{chrom}.bdg"))
+                                        for chrom in tqdm(chroms))
     bdg_files = sorted(glob(os.path.join(temp_dir, "*.bdg")))
     os.system("cat %s > %s.bdg" % (" ".join(bdg_files), fnOut))
     os.system(f"bedGraphToBigWig {fnOut}.bdg {csf} {fnOut}.bw")
     os.system(f"rm -fr {temp_dir}")
+
 
 ######################################
 # Main Workflow (CLI)                #
@@ -719,55 +761,64 @@ def normTgtBw(bw_filepath, gmm, gmm_class_mapping, noise, bg_sf, sig_sf_params, 
     "-r",
     required=True,
     type=str,
-    help="Path to a BED format file specifying the reference regions. These regions are assumed to have no change between samples. Each region must have at least three columns: chromosome, start, and end. Regions with a width less than 100 bp will be ignored. Example: ref_regions.bed"
+    help=
+    "Path to a BED format file specifying the reference regions. These regions are assumed to have no change between samples. Each region must have at least three columns: chromosome, start, and end. Regions with a width less than 100 bp will be ignored. Example: ref_regions.bed"
 )
 @click.option(
     "-o",
     required=True,
     type=str,
-    help="Output file prefix for the results. The program will generate several output files using this prefix, including QC plots and normalized bigWig files. Example: results/test"
+    help=
+    "Output file prefix for the results. The program will generate several output files using this prefix, including QC plots and normalized bigWig files. Example: results/test"
 )
 @click.option(
     "-c",
     required=True,
     type=str,
-    help="Path to the control sample bigWig file. This file should be pre-normalized to RPM (Reads Per Million) or similar normalization with total reads. Example: control_sample.bw"
+    help=
+    "Path to the control sample bigWig file. This file should be pre-normalized to RPM (Reads Per Million) or similar normalization with total reads. Example: control_sample.bw"
 )
 @click.option(
     "-lc",
     default="control",
     type=str,
-    help="Label for the control sample. This label is used in plots and output messages. Default: 'control'"
+    help=
+    "Label for the control sample. This label is used in plots and output messages. Default: 'control'"
 )
 @click.option(
     "-t",
     required=True,
     type=str,
-    help="Path to the treatment sample bigWig file. This file should be pre-normalized to RPM (Reads Per Million). Example: treatment_sample.bw"
+    help=
+    "Path to the treatment sample bigWig file. This file should be pre-normalized to RPM (Reads Per Million). Example: treatment_sample.bw"
 )
 @click.option(
     "-lt",
     default="trt",
     type=str,
-    help="Label for the treatment sample. This label is used in plots and output messages. Default: 'trt'"
+    help=
+    "Label for the treatment sample. This label is used in plots and output messages. Default: 'trt'"
 )
 @click.option(
     "-ext",
     default=10000,
     type=int,
-    help="Extension size (in base pairs) to define the region around reference centers used for classification with the Gaussian Mixture Model (GMM). For narrow peaks, a typical value is 10,000 bp. For broad peaks (e.g., H3K27me3), consider increasing this value (e.g., 50,000 bp)."
+    help=
+    "Extension size (in base pairs) to define the region around reference centers used for classification with the Gaussian Mixture Model (GMM). For narrow peaks, a typical value is 10,000 bp. For broad peaks (e.g., H3K27me3), consider increasing this value (e.g., 50,000 bp)."
 )
 @click.option(
     "-csf",
     required=True,
     type=str,
-    help="Path to the chromosome size file, which is required to convert bedGraph files to bigWig format. This file can be generated using the 'fetchChromSizes' command.  Example: chrom.sizes"
+    help=
+    "Path to the chromosome size file, which is required to convert bedGraph files to bigWig format. This file can be generated using the 'fetchChromSizes' command.  Example: chrom.sizes"
 )
 @click.option(
     "-p",
     default=2,
     type=int,
-    help="Number of CPUs to be used for parallel processing. Increasing this value can reduce processing time if multiple cores are available. Default: 2."
+    help=
+    "Number of CPUs to be used for parallel processing. Increasing this value can reduce processing time if multiple cores are available. Default: 2."
 )
 def paw(r, c, t, o, lc, lt, ext, csf, p):
     """
@@ -812,43 +863,86 @@ def paw(r, c, t, o, lc, lt, ext, csf, p):
     refPeaks = readBed(r)
 
     # Step 2: Remove outliers from reference peaks using the Mahalanobis Distance test
-    rprint(f"[{o}] Step 1/8: remove potential outliers with MD test" )
+    rprint(f"[{o}] Step 1/8: remove potential outliers with MD test")
     filtered_peaks = removeOutliers(refPeaks, c, t, pcut=0.1)
 
     # Step 3: Generate foreground (signal) and background regions
     fg_regions, bg_regions = getFgBgs(filtered_peaks)
-    rprint(f"[{o}] Step 2/8: reference peaks: {len(fg_regions)}; background regions: {len(bg_regions)}")
+    rprint(
+        f"[{o}] Step 2/8: reference peaks: {len(fg_regions)}; background regions: {len(bg_regions)}"
+    )
 
     # Step 4: Visualize original signals around reference centers
     rprint(f"[{o}] Step 3/8: check original signals")
-    showSig(fg_regions, c, t, o + "_1_orig", title="original signal", refLabel=lc, tgtLabel=lt, ext=ext)
+    showSig(fg_regions,
+            c,
+            t,
+            o + "_1_orig",
+            title="original signal",
+            refLabel=lc,
+            tgtLabel=lt,
+            ext=ext)
 
     # Step 5: Perform initial QC for noise and signal-to-noise ratio
-    rprint(f"[{o}] Step 4/8: initial QC for background noise level and signal-to-noise ratio.")
-    fgRef, fgTgt, bgRef, bgTgt = getQc(fg_regions, bg_regions, c, t, o, refLabel=lc, tgtLabel=lt)
+    rprint(
+        f"[{o}] Step 4/8: initial QC for background noise level and signal-to-noise ratio."
+    )
+    fgRef, fgTgt, bgRef, bgTgt = getQc(fg_regions,
+                                       bg_regions,
+                                       c,
+                                       t,
+                                       o,
+                                       refLabel=lc,
+                                       tgtLabel=lt)
     bg_scaling_factor = bgRef.mean() / bgTgt.mean()
-    rprint(f"[{o}] Step 4/8: estimated background scaling factor: {bg_scaling_factor:.3f}.")
+    rprint(
+        f"[{o}] Step 4/8: estimated background scaling factor: {bg_scaling_factor:.3f}."
+    )
 
     # Step 6: Estimate linear fit parameters for signal regions
     rprint(f"[{o}] Step 5/8: estimate signal region fitting parameters")
-    alpha, beta = estFit(fg_regions, c, t, bgRef, bgTgt, bg_scaling_factor, o, lc, lt)
+    alpha, beta = estFit(fg_regions, c, t, bgRef, bgTgt, bg_scaling_factor, o,
+                         lc, lt)
     if beta > 0:
-        rprint(f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({lt}) + {beta:.3f}")
+        rprint(
+            f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({lt}) + {beta:.3f}"
+        )
     else:
-        rprint(f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({lt}) {beta:.3f}")
+        rprint(
+            f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({lt}) {beta:.3f}"
+        )
 
     # Step 7: Train GMM for classification of target sample regions
     rprint(f"[{o}] Step 6/8: train Gaussian Mixture Model for classification")
-    tgtGmm, tgt_class_mapping = trainGmm(fg_regions, bg_regions, t, o, lt, ext=ext)
+    tgtGmm, tgt_class_mapping = trainGmm(fg_regions,
+                                         bg_regions,
+                                         t,
+                                         o,
+                                         lt,
+                                         ext=ext)
 
     # Step 8: Normalize the treatment sample bigWig file
     noise_level = bgTgt.mean()
     rprint(f"[{o}] Step 7/8: normalize target sample bigWig file.")
-    normTgtBw(t, tgtGmm, tgt_class_mapping, noise_level, bg_scaling_factor, [alpha, beta], o + "_" + lt, n_jobs=p, csf=csf)
+    normTgtBw(t,
+              tgtGmm,
+              tgt_class_mapping,
+              noise_level,
+              bg_scaling_factor, [alpha, beta],
+              o + "_" + lt,
+              n_jobs=p,
+              csf=csf)
 
     # Step 9: Visualize corrected signals around reference centers
     rprint(f"[{o}] Step 8/8: check corrected signals")
-    showSig(fg_regions, c, o + "_" + lt + ".bw", o + "_5_corr", title="correct signal", refLabel=lc, tgtLabel=lt, ext=ext)
+    showSig(fg_regions,
+            c,
+            o + "_" + lt + ".bw",
+            o + "_5_corr",
+            title="correct signal",
+            refLabel=lc,
+            tgtLabel=lt,
+            ext=ext)
 
     end_time = datetime.now()
     rprint(f"{script_name} job finished. Used time: {end_time - start_time}")
@@ -856,4 +950,3 @@ def paw(r, c, t, o, lc, lt, ext, csf, p):
 
 if __name__ == "__main__":
     paw()
-
