@@ -469,7 +469,8 @@ def showFCMA(m,
     ax.axvline(noise, color="gray", linestyle="--")
     _noise = 2**noise
     ax.set_title(
-        f"Signal Comparison\n log2(fold change) > {mcut} \n average > {_noise}")
+        f"Signal Comparison\n log2(fold change) > {mcut} \n average > {_noise}"
+    )
     ax.set_xlabel(f"log2({treatment_label}) + log2({control_label})")
     ax.set_ylabel(f"log2({treatment_label}) - log2({control_label})")
     pylab.savefig(out_prefix + "_FC_MA.pdf")
@@ -588,7 +589,8 @@ def showSig(regions,
     "-mode",
     default="FC",
     type=click.Choice(["MD", "FC"], case_sensitive=False),
-    help= "Variable feature detection mode: 'MD' (two-pass Mahalanobis distance test) or 'FC' (Fold Change > 2 with Poisson test). Default is FC."
+    help=
+    "Variable feature detection mode: 'MD' (two-pass Mahalanobis distance test) or 'FC' (Fold Change > 2 with Poisson test). Default is FC."
 )
 def patrol(r, c, t, o, lc, lt, pcut, mode):
     """

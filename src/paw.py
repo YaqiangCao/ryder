@@ -859,7 +859,7 @@ def paw(r, c, t, o, lc, lt, ext, csf, p):
         if not os.path.isfile(filepath):
             rprint(f"ERROR! Input file {filepath} does not exist. Return!")
     output_dir = os.path.dirname(o)
-    if not os.path.exists(output_dir):
+    if output_dir !="" and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
     # Step 1: Read reference peaks from BED file
