@@ -822,7 +822,7 @@ def normTgtBw(bw_filepath,
 )
 def paw(r, c, t, o, lc, lt, ext, csf, p):
     """
-    PAW: Cross-sample ChIP-seq/DNase-seq/ATAC-seq normalization with internal reference.
+    PAW: Cross-sample Epigenome Data Normalization with Internal Reference Algorithm.
     
     This script normalizes a target sample (treatment/replicate 2) to a reference sample (control/replicate 1) at base-pair resolution.
 

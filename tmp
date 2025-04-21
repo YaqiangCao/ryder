@@ -1,34 +1,3 @@
-# Ryder: Epigenome normalization with internal reference and variable features identification.    
-
-![Rescuing Your Data with Paw Patrol!](https://i0.wp.com/cardiffmummysays.com/wp-content/uploads/2016/04/Paw-Patrol-5.jpg?resize=930%2C360)   
-
----
-## Required python packages and other tools 
-All requried other packages can be installed through conda or pip. 
-
-python packages:
-```
-numpy 
-scipy
-pandas
-matplotlib
-seaborn 
-click 
-joblib
-tqdm
-pyBigWig
-scikit-learn
-```
-
-Linux command line tools:
-```
-bedGraphToBigWig
-```
-
----
-## Usage
-
-```
 Usage: paw.py [OPTIONS]
 
   PAW: Cross-sample Epigenome Data Normalization with Internal Reference
@@ -37,7 +6,7 @@ Usage: paw.py [OPTIONS]
   This script normalizes a target sample (treatment/replicate 2) to a
   reference sample (control/replicate 1) at base-pair resolution.
 
-  It relies on the assumptions that:
+  It relies on the assumption that:
 
     1. Background noise levels are similar between the samples.
 
@@ -92,45 +61,3 @@ Options:
                 available. Default: 2.
   -h, --help    Show this message and exit.
 
-```
-
-
-```
-Usage: patrol.py [OPTIONS]
-
-  PATROL: Epigenome Variable Features Detection Algorithm.
-
-  This script detects highly variable genomic features by performing either a
-  two-pass Mahalanobis Distance test ('MD' mode) or Fold Change/Poisson test
-  ('FC' mode) on normalized ChIP-seq/DNase-seq/ATAC-seq data by paw.py. It
-  quantifies signals over specified regions, estimates background noise, and
-  identifies differential signals using statistical tests. It Outputs
-  statistics, MA plots, aggregate plots, and BED files of significant regions.
-
-  Examples:
-
-    $ patrol.py -r regions.bed -c control.bw -t treatment.bw -o results_diff
-
-Options:
-  -r TEXT        Path to a BED format file specifying regions of interest for
-                 differential analysis. Each region must have at least three
-                 columns: chromosome, start, and end. Example: regions.bed
-                 [required]
-  -o TEXT        Output file prefix. Several output files (statistics and
-                 plots) will be generated using this prefix. Example:
-                 results/test  [required]
-  -c TEXT        Path to the control sample bigWig file. This file should be
-                 normalized (e.g., to RPM). Example: control.bw  [required]
-  -lc TEXT       Label for the control sample (default: 'control').
-  -t TEXT        Path to the treatment sample bigWig file. This file should be
-                 normalized (e.g., to RPM). Example: treatment.bw  [required]
-  -lt TEXT       Label for the treatment sample (default: 'trt').
-  -pcut FLOAT    P-value cutoff for the two-pass Mahalanobis distance test if
-                 -mode is MD or Poisson test if -mode is FC. Regions with
-                 p-values below this cutoff are considered significant
-                 variable features. Default is 0.01.
-  -mode [MD|FC]  Variable feature detection mode: 'MD' (two-pass Mahalanobis
-                 distance test) or 'FC' (Fold Change > 2 with Poisson test).
-                 Default is FC.
-  -h, --help     Show this message and exit.
-```
