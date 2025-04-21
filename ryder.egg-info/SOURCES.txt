@@ -1,5 +1,7 @@
+.gitignore
 README.md
 setup.py
+dist/ryder-1.0.0-py3.9.egg
 ryder.egg-info/PKG-INFO
 ryder.egg-info/SOURCES.txt
 ryder.egg-info/dependency_links.txt
@@ -8,3 +10,4 @@ ryder.egg-info/top_level.txt
 src/__init__.py
 src/patrol.py
 src/paw.py
+test/run.sh

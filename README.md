@@ -1,7 +1,7 @@
 # ryder
 Epigenome normalization with internal reference and variable features identifications.    
 
-![Paw Patrol for Rescuing Your Data](https://www.google.com/imgres?q=ryder%20and%20paw%20patrol&imgurl=https%3A%2F%2Ftodaysparent.mblycdn.com%2Fuploads%2Ftp%2F2017%2F01%2F8-things-parents-just-dont-get-about-Paw-Patrol.jpg&imgrefurl=https%3A%2F%2Fwww.todaysparent.com%2Fblogs%2F8-things-parents-just-dont-get-about-paw-patrol%2F&docid=1pIIUz2mnU1_KM&tbnid=5jrJV6VBNFK_fM&vet=12ahUKEwilxZKi-r6MAxWINlkFHSq0Ce0QM3oECHIQAA..i&w=1280&h=960&hcb=2&ved=2ahUKEwilxZKi-r6MAxWINlkFHSq0Ce0QM3oECHIQAA)   
+![Paw Patrol for Rescuing Your Data](https://www.google.com/url?sa=i&url=http%3A%2F%2Fcardiffmummysays.com%2Ffamily-life%2F17-things-i-dont-understand-about-paw-patrol%2F&psig=AOvVaw3mj_b3YpGHQFL8MO0AJwqH&ust=1745333291368000&source=images&cd=vfe&opi=89978449&ved=0CBYQjRxqFwoTCKjSwcqv6YwDFQAAAAAdAAAAABAE)   
 
 Rescuing Your Data with Paw Patrol!
 
