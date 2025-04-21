@@ -1,10 +1,21 @@
 #!/usr/bin/env python
 # --coding:utf-8--
 """
-PATROL algorithm for cross-sample normalized ChIP-seq/DNase-seq/ATAC-seq differential features detection.
+This script implements the PATROL algorithm to identify statistically significant differential features (e.g., peaks) between two conditions (control vs. treatment) in normalized ChIP-seq, DNase-seq, or ATAC-seq data provided as bigWig files.
 
-This tool detects highly variable features by performing a two-pass Mahalanobis distance test on normalized signal data. The algorithm uses internal references from DNase-seq, ATAC-seq, ChIP-seq, and MNase-seq experiments.
+It involves the following steps:
+1. Reading regions of interest from a BED file.
+2. Generating background regions to estimate noise.
+3. Quantifying signals from control and treatment bigWig files over foreground regions.
+4. Calculating log2 fold changes (M) and average signals (A).
+5. Performing statistical tests:
+    - Two-pass Mahalanobis distance test (Mode 'MD') on (M, A) values.
+    - Poisson test (Mode 'FC') on raw counts, filtering by fold change.
+6. Generating MA plots and aggregate signal plots.
+7. Saving statistical results and BED files of significant regions.
 
+
+2025-04-21: Basically finished. 
 """
 
 __author__ = "CAO Yaqiang"
@@ -575,18 +586,18 @@ def showSig(regions,
 )
 @click.option(
     "-mode",
-    default="MD",
+    default="FC",
     type=click.Choice(["MD", "FC"], case_sensitive=False),
-    help=
-    "Variable feature detection method, default is MD. MD is based on a two-pass Mahalanobis distance test and is the default option. Chose FC to perfome a traditional fold chage > 2 selection using the average cutoff detected from MD method and perform the Poisson test.",
+    help= "Variable feature detection mode: 'MD' (two-pass Mahalanobis distance test) or 'FC' (Fold Change > 2 with Poisson test). Default is FC."
 )
 def patrol(r, c, t, o, lc, lt, pcut, mode):
     """
-    PATROL: Sequencing Data Variable Features Detection Algorithm.
+    PATROL: Epigenome Variable Features Detection Algorithm.
 
-    This script detects highly variable genomic features by performing a two-pass Mahalanobis distance test or Poisson test on normalized ChIP-seq/DNase-seq/ATAC-seq data. It quantifies signals over specified regions, estimates background noise, and identifies differential signals using statistical tests.
+    This script detects highly variable genomic features by performing either a two-pass Mahalanobis Distance test ('MD' mode) or Fold Change/Poisson test ('FC' mode) on normalized ChIP-seq/DNase-seq/ATAC-seq data by paw.py. It quantifies signals over specified regions, estimates background noise, and identifies differential signals using statistical tests. It Outputs statistics, MA plots, aggregate plots, and BED files of significant regions.
 
     Examples:
+
       $ patrol.py -r regions.bed -c control.bw -t treatment.bw -o results_diff
 
     """
