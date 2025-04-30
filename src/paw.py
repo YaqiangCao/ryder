@@ -916,7 +916,7 @@ def paw(r, c, t, o, lc, lt, ext, csf, p):
         )
 
     # Step 7: Train GMM for classification of target sample regions
-    rprint(f"[{o}] Step 6/8: train Gaussian Mixture Model for classification")
+    rprint(f"[{o}] Step 6/8: train Gaussian Mixture Model for classification signal vs. background.")
     tgtGmm, tgt_class_mapping = trainGmm(fg_regions,
                                          bg_regions,
                                          t,
