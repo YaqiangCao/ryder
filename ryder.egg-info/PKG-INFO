@@ -1,15 +1,12 @@
-Metadata-Version: 1.2
+Metadata-Version: 2.1
 Name: ryder
 Version: 1.0.0
 Summary: Epigenome normalization with internal reference and variable features identifications.
 Home-page: https://github.com/YaqiangCao/ryder
 Author: Yaqiang Cao
 Author-email: caoyaqiang0410@gmail.com
-License: UNKNOWN
 Project-URL: Source, https://github.com/YaqiangCao/ryder
-Description: UNKNOWN
 Keywords: Epigenome,Cross-sample Normalization,ChIP-seq/DNase-seq/ATAC-seq/MNase-seq,Internal Reference
-Platform: UNKNOWN
 Classifier: Environment :: Console
 Classifier: Operating System :: MacOS :: MacOS X
 Classifier: Operating System :: POSIX

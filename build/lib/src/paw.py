@@ -23,6 +23,7 @@ History:
 2025-04-04: Initial version
 2025-04-09: Revised and basically finished
 2025-04-11: Introduced Mahalanobis distance test for outlier removal in reference regions. 
+2025-04-30: Add -pred option for bgs, alpha, beta pretrained from spike-in data
 
 """
 
@@ -358,16 +359,18 @@ def getQc(fg_regions,
     return fgRef, fgTgt, bgRef, bgTgt
 
 
+
 def estFit(fg_regions,
            ref_bw,
            tgt_bw,
            bgRef,
            bgTgt,
-           bg_sf,
            out_prefix,
            refLabel="ref",
            tgtLabel="tgt",
-           bins=2):
+           alpha=None, 
+           beta=None,
+           bins=5):
     """
     Estimate the linear fit parameters between the reference and target sample signal regions.
 
@@ -376,10 +379,11 @@ def estFit(fg_regions,
     :param tgt_bw: str, bigWig file for the target sample.
     :param bgRef: numpy array, background signal for reference.
     :param bgTgt: numpy array, background signal for target.
-    :param bg_sf: float, scaling factor for background.
     :param out_prefix: str, output file prefix.
     :param refLabel: str, label for reference.
     :param tgtLabel: str, label for target.
+    :param alpha: float, linear fitting alpha, if None, estimate it.
+    :param beta: float, linear fitting beta, if None, estimate it.
     :param bins: int, number of bins.
     :return: list [alpha, beta] for linear fit: log2(target) = alpha * log2(target) + beta.
     """
@@ -419,9 +423,10 @@ def estFit(fg_regions,
     ax.set_title(f"before correction \n M~A PCC:{pcc:.3f}")
     ax.set_xlabel(refLabel)
     ax.set_ylabel(tgtLabel)
-
-    alpha = refS.std() / tgtS.std()
-    beta = refS.mean() - alpha * tgtS.mean()
+   
+    if alpha is None and beta is None:
+        alpha = refS.std() / tgtS.std()
+        beta = refS.mean() - alpha * tgtS.mean()
     tgt_scaled = tgtS * alpha + beta
     diff_scaled = tgt_scaled - refS
     avg_scaled = (refS + tgt_scaled) / 2
@@ -807,6 +812,13 @@ def normTgtBw(bw_filepath,
     "Extension size (in base pairs) to define the region around reference centers used for classification with the Gaussian Mixture Model (GMM). For narrow peaks, a typical value is 10,000 bp. For broad peaks (e.g., H3K27me3), consider increasing this value (e.g., 50,000 bp)."
 )
 @click.option(
+    "-pred",
+    type=click.Tuple([float, float, float]),
+    default=(0,0,0),
+    help=
+    "Skip the modeling step and use previously estimated background scaling factors (from Step 4/8) and log2 data linear fitting parameters (alpha and beta, from Step 5/8), such as those derived from spike-in data."
+)
+@click.option(
     "-csf",
     required=True,
     type=str,
@@ -820,7 +832,7 @@ def normTgtBw(bw_filepath,
     help=
     "Number of CPUs to be used for parallel processing. Increasing this value can reduce processing time if multiple cores are available. Default: 2."
 )
-def paw(r, c, t, o, lc, lt, ext, csf, p):
+def paw(r, c, t, o, lc, lt, ext, pred, csf, p):
     """
     PAW: Cross-sample Epigenome Data Normalization with Internal Reference Algorithm.
     
@@ -847,11 +859,22 @@ def paw(r, c, t, o, lc, lt, ext, csf, p):
 
          $ paw.py -r peaks.bed -c rep1.bw -t rep2.bw -o results/test
 
+
+      3. Estimate the fitting through spike-in data then apply      
+        
+         $ paw.py -r si_peaks.bed -c si_wt.bw -t si_ko.bw -o results/si    
+
+         #read the background scaling factor from the line of Step 4/8, say 0.734
+
+         #read the signal region fitting parameters alpha and beta from the line of Step 5/8 , say 0.934 * log2(KO) -1.433
+
+         $ paw.py -r peaks.bed -c wt.bw -t ko.bw -o results/data -pred 0.734 0.934 -1.433
+
     """
     start_time = datetime.now()
     script_name = os.path.basename(__file__)
     rprint(
-        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -ext {ext} -p {p} -csf {csf}"
+        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -pred {pred} -ext {ext} -p {p} -csf {csf}"
     )
 
     # Step 0: Check input files exist
@@ -897,26 +920,33 @@ def paw(r, c, t, o, lc, lt, ext, csf, p):
                                        o,
                                        refLabel=lc,
                                        tgtLabel=lt)
-    bg_scaling_factor = bgRef.mean() / bgTgt.mean()
-    rprint(
-        f"[{o}] Step 4/8: estimated background scaling factor: {bg_scaling_factor:.3f}."
-    )
+    
+    if pred == (0,0,0):
+        bg_scaling_factor = bgRef.mean() / bgTgt.mean()
+        rprint(
+            f"[{o}] Step 4/8: estimated background scaling factor: {bg_scaling_factor:.3f}."
+        )
 
-    # Step 6: Estimate linear fit parameters for signal regions
-    rprint(f"[{o}] Step 5/8: estimate signal region fitting parameters")
-    alpha, beta = estFit(fg_regions, c, t, bgRef, bgTgt, bg_scaling_factor, o,
-                         lc, lt)
-    if beta > 0:
-        rprint(
-            f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({lt}) + {beta:.3f}"
-        )
+        # Step 6: Estimate linear fit parameters for signal regions
+        rprint(f"[{o}] Step 5/8: estimate signal region fitting parameters")
+        alpha, beta = estFit(fg_regions, c, t, bgRef, bgTgt,  o, lc, lt)
+        if beta > 0:
+            rprint(
+                f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({lt}) + {beta:.3f}"
+            )
+        else:
+            rprint(
+                f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({lt}) {beta:.3f}"
+            )
     else:
-        rprint(
-            f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({lt}) {beta:.3f}"
-        )
+        rprint(f"[{o}] Step 4&5/8: use background scaling factor and signal region fitting parameters through -pred {pred}")
+        bg_scaling_factor, alpha, beta = pred
+        #just show the qc plot
+        estFit(fg_regions, c, t, bgRef, bgTgt,  o, lc, lt, alpha, beta)
+
 
     # Step 7: Train GMM for classification of target sample regions
-    rprint(f"[{o}] Step 6/8: train Gaussian Mixture Model for classification")
+    rprint(f"[{o}] Step 6/8: train Gaussian Mixture Model for classification signal vs. background.")
     tgtGmm, tgt_class_mapping = trainGmm(fg_regions,
                                          bg_regions,
                                          t,

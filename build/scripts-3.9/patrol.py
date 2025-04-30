@@ -1,4 +1,4 @@
-#!/home/caoy7/anaconda2/envs/vince/bin/python
+#!python
 # --coding:utf-8--
 """
 This script implements the PATROL algorithm to identify statistically significant differential features (e.g., peaks) between two conditions (control vs. treatment) in normalized ChIP-seq, DNase-seq, or ATAC-seq data provided as bigWig files.
