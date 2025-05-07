@@ -149,7 +149,10 @@ def quant(regions, bw_filepath):
     for region in tqdm(regions):
         chrom, start, end = region
         region_id = f"{chrom}:{start}-{end}"
-        values = bw.values(chrom, start, end)
+        try:
+            values = bw.values(chrom, start, end)
+        except:
+            continue
         # Replace NaNs with zeros and compute mean signal
         values = np.nan_to_num(values)
         result[region_id] = np.sum(values) / len(values)

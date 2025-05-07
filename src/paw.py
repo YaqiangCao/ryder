@@ -149,7 +149,10 @@ def quant(regions, bw_filepath):
     for region in tqdm(regions):
         chrom, start, end = region
         region_id = f"{chrom}:{start}-{end}"
-        values = bw.values(chrom, start, end)
+        try:
+            values = bw.values(chrom, start, end)
+        except:
+            continue
         # Replace NaNs with zeros and compute mean signal
         values = np.nan_to_num(values)
         result[region_id] = np.sum(values) / len(values)
@@ -261,11 +264,17 @@ def showSig(regions,
     for region in tqdm(regions):
         chrom = region[0]
         center = int((region[1] + region[2]) / 2)
-        control_vals = bw_control.values(chrom, center - ext, center + ext + 1)
+        try:
+            control_vals = bw_control.values(chrom, center - ext, center + ext + 1)
+        except:
+            continue
         control_vals = np.nan_to_num(control_vals)
         control_signal += control_vals
-        treatment_vals = bw_treatment.values(chrom, center - ext,
+        try:
+            treatment_vals = bw_treatment.values(chrom, center - ext,
                                              center + ext + 1)
+        except:
+            continue
         treatment_vals = np.nan_to_num(treatment_vals)
         treatment_signal += treatment_vals
     control_signal /= len(regions)

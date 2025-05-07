@@ -237,7 +237,10 @@ def quant(regions, bg_regions, bw_filepath):
     # Calculate noise level from background regions
     for region in bg_regions:
         chrom, start, end = region
-        vals = bw.values(chrom, start, end)
+        try:
+            vals = bw.values(chrom, start, end)
+        except:
+            continue
         vals = np.nan_to_num(vals)
         noise_vals.append(np.sum(vals) / len(vals))
     noise_level = np.mean(noise_vals)
