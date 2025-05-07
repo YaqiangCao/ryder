@@ -249,7 +249,10 @@ def quant(regions, bg_regions, bw_filepath):
     for region in tqdm(regions):
         chrom, start, end = region
         region_id = f"{chrom}:{start}-{end}"
-        vals = bw.values(chrom, start, end)
+        try:
+            vals = bw.values(chrom, start, end)
+        except:
+            continue
         vals = np.nan_to_num(vals)
         avg_signal = np.sum(vals) / len(vals)
         # Replace zero values with the estimated noise level
