@@ -61,46 +61,84 @@ Usage: paw.py [OPTIONS]
     1. Typical pair-wise comparison:
 
        $ paw.py -r ref_regions.bed -c control_sample.bw -t treatment_sample.bw
-       -o results/test
+       -csf mm10.chrom.sizes -o results/test
 
     2. Replicate alignment:
 
-       $ paw.py -r peaks.bed -c rep1.bw -t rep2.bw -o results/test
+       $ paw.py -r peaks.bed -c rep1.bw -t rep2.bw -o results/test -csf
+       mm10.chrom.sizes
+
+    3. Estimate the fitting through spike-in data then apply                 $
+    paw.py -r si_peaks.bed -c si_wt.bw -t si_ko.bw -o results/si -csf
+    mm10.chrom.sizes
+
+       #read the background scaling factor from the line of Step 4/8, say
+       0.734
+
+       #read the signal region fitting parameters alpha and beta from the line
+       of Step 5/8 , say 0.934 * log2(KO) -1.433
+
+       $ paw.py -r peaks.bed -c wt.bw -t ko.bw -o results/data -pred 0.734
+       0.934 -1.433 -csf mm10.chrom.sizes
 
 Options:
-  -r TEXT       Path to a BED format file specifying the reference regions.
-                These regions are assumed to have no change between samples.
-                Each region must have at least three columns: chromosome,
-                start, and end. Regions with a width less than 100 bp will be
-                ignored. Example: ref_regions.bed  [required]
-  -o TEXT       Output file prefix for the results. The program will generate
-                several output files using this prefix, including QC plots and
-                normalized bigWig files. Example: results/test  [required]
-  -c TEXT       Path to the control sample bigWig file. This file should be
-                pre-normalized to RPM (Reads Per Million) or similar
-                normalization with total reads. Example: control_sample.bw
-                [required]
-  -lc TEXT      Label for the control sample. This label is used in plots and
-                output messages. Default: 'control'
-  -t TEXT       Path to the treatment sample bigWig file. This file should be
-                pre-normalized to RPM (Reads Per Million). Example:
-                treatment_sample.bw  [required]
-  -lt TEXT      Label for the treatment sample. This label is used in plots
-                and output messages. Default: 'trt'
-  -ext INTEGER  Extension size (in base pairs) to define the region around
-                reference centers used for classification with the Gaussian
-                Mixture Model (GMM). For narrow peaks, a typical value is
-                10,000 bp. For broad peaks (e.g., H3K27me3), consider
-                increasing this value (e.g., 50,000 bp).
-  -csf TEXT     Path to the chromosome size file, which is required to convert
-                bedGraph files to bigWig format. This file can be generated
-                using the 'fetchChromSizes' command.  Example: chrom.sizes
-                [required]
-  -p INTEGER    Number of CPUs to be used for parallel processing. Increasing
-                this value can reduce processing time if multiple cores are
-                available. Default: 2.
-  -h, --help    Show this message and exit.
-
+  -r TEXT                         Path to a BED format file specifying the
+                                  reference regions. These regions are assumed
+                                  to have no change between samples. Each
+                                  region must have at least three columns:
+                                  chromosome, start, and end. Regions with a
+                                  width less than 100 bp will be ignored.
+                                  Example: ref_regions.bed  [required]
+  -o TEXT                         Output file prefix for the results. The
+                                  program will generate several output files
+                                  using this prefix, including QC plots and
+                                  normalized bigWig files. Example:
+                                  results/test  [required]
+  -c TEXT                         Path to the control sample bigWig file. This
+                                  file should be pre-normalized to RPM (Reads
+                                  Per Million) or similar normalization with
+                                  total reads. Example: control_sample.bw
+                                  [required]
+  -lc TEXT                        Label for the control sample. This label is
+                                  used in plots and output messages. Default:
+                                  'control'
+  -t TEXT                         Path to the treatment sample bigWig file.
+                                  This file should be pre-normalized to RPM
+                                  (Reads Per Million). Example:
+                                  treatment_sample.bw  [required]
+  -lt TEXT                        Label for the treatment sample. This label
+                                  is used in plots and output messages.
+                                  Default: 'trt'
+  -ext INTEGER                    Extension size (in base pairs) to define the
+                                  region around reference centers used for
+                                  classification with the Gaussian Mixture
+                                  Model (GMM). For narrow peaks, a typical
+                                  value is 10,000 bp. For broad peaks (e.g.,
+                                  H3K27me3), consider increasing this value
+                                  (e.g., 50,000 bp).
+  -mode [norm|lr]                 Specifies the method used to draw the
+                                  distribution of target sample to reference
+                                  sample. Available options are norm (z-score
+                                  like with log2 signal) and lr (linear
+                                  fitting with log2 signal). Default is norm.
+                                  Chose the one that final normalized
+                                  aggregated signal shows the same level.
+  -pred <FLOAT FLOAT FLOAT FLOAT>...
+                                  Skip the modeling step and use previously
+                                  estimated background/signal scaling factors
+                                  (from Step 4/8) and log2 data linear fitting
+                                  parameters (alpha and beta, from Step 5/8),
+                                  such as those derived from spike-in data.
+  -csf TEXT                       Path to the chromosome size file, which is
+                                  required to convert bedGraph files to bigWig
+                                  format. This file can be generated using the
+                                  'fetchChromSizes' command.  Example:
+                                  chrom.sizes  [required]
+  -p INTEGER                      Number of CPUs to be used for parallel
+                                  processing. Increasing this value can reduce
+                                  processing time if multiple cores are
+                                  available. Default: 2.
+  -h, --help                      Show this message and exit.
 ```
 
 
@@ -144,3 +182,6 @@ Options:
                  Default is FC.
   -h, --help     Show this message and exit.
 ```
+
+
+

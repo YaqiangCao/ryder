@@ -849,23 +849,23 @@ def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p):
 
       1. Typical pair-wise comparison:
 
-         $ paw.py -r ref_regions.bed -c control_sample.bw -t treatment_sample.bw -o results/test      
+         $ paw.py -r ref_regions.bed -c control_sample.bw -t treatment_sample.bw -csf mm10.chrom.sizes -o results/test      
         
 
       2. Replicate alignment:
 
-         $ paw.py -r peaks.bed -c rep1.bw -t rep2.bw -o results/test
+         $ paw.py -r peaks.bed -c rep1.bw -t rep2.bw -o results/test -csf mm10.chrom.sizes
 
 
       3. Estimate the fitting through spike-in data then apply      
         
-         $ paw.py -r si_peaks.bed -c si_wt.bw -t si_ko.bw -o results/si    
+         $ paw.py -r si_peaks.bed -c si_wt.bw -t si_ko.bw -o results/si -csf mm10.chrom.sizes
 
          #read the background scaling factor from the line of Step 4/8, say 0.734
 
          #read the signal region fitting parameters alpha and beta from the line of Step 5/8 , say 0.934 * log2(KO) -1.433
 
-         $ paw.py -r peaks.bed -c wt.bw -t ko.bw -o results/data -pred 0.734 0.934 -1.433
+         $ paw.py -r peaks.bed -c wt.bw -t ko.bw -o results/data -pred 0.734 0.934 -1.433 -csf mm10.chrom.sizes
 
     """
     start_time = datetime.now()
