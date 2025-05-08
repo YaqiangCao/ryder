@@ -699,7 +699,7 @@ def showSig(regions,
               type=click.Tuple([float, float]),
               default=(None, None),
               help="Set ylim for the MA plot.")
-def patrol(r, c, t, o, lc, lt, pcut, mode):
+def patrol(r, c, t, o, lc, lt, pcut, mode,xlim,ylim):
     """
     PATROL: Epigenome Variable Features Detection Algorithm.
 

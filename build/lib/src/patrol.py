@@ -249,7 +249,10 @@ def quant(regions, bg_regions, bw_filepath):
     for region in tqdm(regions):
         chrom, start, end = region
         region_id = f"{chrom}:{start}-{end}"
-        vals = bw.values(chrom, start, end)
+        try:
+            vals = bw.values(chrom, start, end)
+        except:
+            continue
         vals = np.nan_to_num(vals)
         avg_signal = np.sum(vals) / len(vals)
         # Replace zero values with the estimated noise level
@@ -340,14 +343,18 @@ def idx2peaks(inds):
     return peaks
 
 
-def showMDMA(m,
-             a,
-             control_label,
-             treatment_label,
-             p_values,
-             out_prefix,
-             noise,
-             pcut=0.01):
+def showMDMA(
+        m,
+        a,
+        control_label,
+        treatment_label,
+        p_values,
+        out_prefix,
+        noise,
+        pcut=0.01,
+        xlim=(None, None),
+        ylim=(None, None),
+):
     """
     Generate and save an MA plot showing differential signal (M) versus average signal (A).
 
@@ -403,6 +410,8 @@ def showMDMA(m,
     )
     ax.set_xlabel(f"log2({treatment_label}) + log2({control_label})")
     ax.set_ylabel(f"log2({treatment_label}) - log2({control_label})")
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
     pylab.savefig(out_prefix + "_MD_MA.pdf")
     rs = {
         control_label: idx2peaks(down_idx),
@@ -411,15 +420,19 @@ def showMDMA(m,
     return rs
 
 
-def showFCMA(m,
-             a,
-             control_label,
-             treatment_label,
-             p_values,
-             out_prefix,
-             noise,
-             mcut=1,
-             pcut=0.01):
+def showFCMA(
+        m,
+        a,
+        control_label,
+        treatment_label,
+        p_values,
+        out_prefix,
+        noise,
+        mcut=1,
+        pcut=0.01,
+        xlim=(None, None),
+        ylim=(None, None),
+):
     """
     Generate and save an MA plot showing differential signal (M) versus average signal (A) and use cutoff of MA as 1 and poisson p-value cutoff.
 
@@ -476,6 +489,82 @@ def showFCMA(m,
     )
     ax.set_xlabel(f"log2({treatment_label}) + log2({control_label})")
     ax.set_ylabel(f"log2({treatment_label}) - log2({control_label})")
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    pylab.savefig(out_prefix + "_FC_MA.pdf")
+    rs = {
+        control_label: idx2peaks(down_idx),
+        treatment_label: idx2peaks(up_idx)
+    }
+    return rs
+
+
+def showFCnMA(
+        m,
+        a,
+        control_label,
+        treatment_label,
+        out_prefix,
+        noise,
+        mcut=1,
+        xlim=(None, None),
+        ylim=(None, None),
+):
+    """
+    Generate and save an MA plot showing differential signal (M) versus average signal (A) and use cutoff of MA as 1.
+
+
+    :param m: pandas Series, log2 fold-change (treatment - control).
+    :param a: pandas Series, average log2 signal.
+    :param control_label: str, label for control sample.
+    :param treatment_label: str, label for treatment sample.
+    :param out_prefix: str, prefix for the output plot file.
+    :param noise: float, estimated noise level for scaling.
+    """
+    fig, ax = pylab.subplots()
+    # Plot all regions in gray
+    ax.scatter(a,
+               m,
+               s=0.5,
+               color="gray",
+               alpha=0.6,
+               label=f"Total {len(a)} regions")
+
+    # Identify regions passing the cutoff and above noise
+    valid = a[a > noise].index
+    m_valid = m[valid]
+    # Split based on sign of M (up- or down-regulated)
+    up_idx = m_valid[m_valid > mcut].index
+    down_idx = m_valid[m_valid < -mcut].index
+    ax.scatter(a[down_idx],
+               m[down_idx],
+               s=1,
+               color=colors[0],
+               alpha=0.8,
+               label=f"{len(down_idx)} {control_label} regions")
+    ax.scatter(a[up_idx],
+               m[up_idx],
+               s=1,
+               color=colors[1],
+               alpha=0.8,
+               label=f"{len(up_idx)} {treatment_label} regions")
+    leg = ax.legend(frameon=False,
+                    markerscale=0,
+                    labelcolor=["gray", colors[0], colors[1]])
+    for handle in leg.legendHandles:
+        handle._sizes = [10]
+    ax.axhline(0, color="gray", linestyle="--")
+    ax.axhline(mcut, color=colors[1], linestyle="--")
+    ax.axhline(-mcut, color=colors[0], linestyle="--")
+    ax.axvline(noise, color="gray", linestyle="--")
+    _noise = 2**noise
+    ax.set_title(
+        f"Signal Comparison\n log2(fold change) > {mcut} \n average > {_noise}"
+    )
+    ax.set_xlabel(f"log2({treatment_label}) + log2({control_label})")
+    ax.set_ylabel(f"log2({treatment_label}) - log2({control_label})")
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
     pylab.savefig(out_prefix + "_FC_MA.pdf")
     rs = {
         control_label: idx2peaks(down_idx),
@@ -513,13 +602,15 @@ def showSig(regions,
         chrom = region[0]
         center = int((region[1] + region[2]) / 2)
         try:
-            control_vals = bw_control.values(chrom, center - ext, center + ext + 1)
+            control_vals = bw_control.values(chrom, center - ext,
+                                             center + ext + 1)
         except:
             continue
         control_vals = np.nan_to_num(control_vals)
         control_signal += control_vals
         try:
-            treatment_vals = bw_treatment.values(chrom, center - ext, center + ext + 1)
+            treatment_vals = bw_treatment.values(chrom, center - ext,
+                                                 center + ext + 1)
         except:
             continue
         treatment_vals = np.nan_to_num(treatment_vals)
@@ -595,11 +686,19 @@ def showSig(regions,
 )
 @click.option(
     "-mode",
-    default="FC",
-    type=click.Choice(["MD", "FC"], case_sensitive=False),
+    default="FCn",
+    type=click.Choice(["MD", "FC", "FCn"], case_sensitive=False),
     help=
-    "Variable feature detection mode: 'MD' (two-pass Mahalanobis distance test) or 'FC' (Fold Change > 2 with Poisson test). Default is FC."
+    "Variable feature detection mode: 'MD' (two-pass Mahalanobis distance test), 'FC' (Fold Change > 2 with Poisson test), 'FCn' (Fold Change > 2 without Poisson test). Default is FCn."
 )
+@click.option("-xlim",
+              type=click.Tuple([float, float]),
+              default=(None, None),
+              help="Set xlim for the MA plot.")
+@click.option("-ylim",
+              type=click.Tuple([float, float]),
+              default=(None, None),
+              help="Set ylim for the MA plot.")
 def patrol(r, c, t, o, lc, lt, pcut, mode):
     """
     PATROL: Epigenome Variable Features Detection Algorithm.
@@ -614,7 +713,7 @@ def patrol(r, c, t, o, lc, lt, pcut, mode):
     start_time = datetime.now()
     script_name = os.path.basename(__file__)
     rprint(
-        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -pcut {pcut}"
+        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -pcut {pcut} -xlim {xlim} -ylim {ylim}"
     )
 
     # Step 0: Check required input files exist
@@ -623,7 +722,7 @@ def patrol(r, c, t, o, lc, lt, pcut, mode):
             rprint(f"ERROR! Input file {filepath} does not exist. Exiting.")
             return
     output_dir = os.path.dirname(o)
-    if output_dir !="" and not os.path.exists(output_dir):
+    if output_dir != "" and not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
     # Step 1: Read regions of interest and generate background regions to estimate noise
@@ -674,9 +773,29 @@ def patrol(r, c, t, o, lc, lt, pcut, mode):
         f"[{o}] Step 5/6: Generating MA plot of detected differential features and save them"
     )
     if mode == "MD":
-        rs = showMDMA(M, A, lc, lt, p_values, o, combined_noise, pcut=pcut)
-    else:
-        rs = showFCMA(M, A, lc, lt, pp_values, o, combined_noise, pcut=pcut)
+        rs = showMDMA(M,
+                      A,
+                      lc,
+                      lt,
+                      p_values,
+                      o,
+                      combined_noise,
+                      pcut=pcut,
+                      xlim=xlim,
+                      ylim=ylim)
+    if mode == "FC":
+        rs = showFCMA(M,
+                      A,
+                      lc,
+                      lt,
+                      pp_values,
+                      o,
+                      combined_noise,
+                      pcut=pcut,
+                      xlim=xlim,
+                      ylim=ylim)
+    if mode == "FCn":
+        rs = showFCnMA(M, A, lc, lt, o, combined_noise, xlim=xlim, ylim=ylim)
     for k, vs in rs.items():
         with open(f"{o}_{k}.bed", "w") as fo:
             for v in vs:
