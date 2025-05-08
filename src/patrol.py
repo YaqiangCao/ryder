@@ -713,7 +713,7 @@ def patrol(r, c, t, o, lc, lt, pcut, mode,xlim,ylim):
     start_time = datetime.now()
     script_name = os.path.basename(__file__)
     rprint(
-        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -pcut {pcut} -xlim {xlim} -ylim {ylim}"
+        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -pcut {pcut} -mode {mode} -xlim {xlim} -ylim {ylim}"
     )
 
     # Step 0: Check required input files exist

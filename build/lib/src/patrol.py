@@ -699,7 +699,7 @@ def showSig(regions,
               type=click.Tuple([float, float]),
               default=(None, None),
               help="Set ylim for the MA plot.")
-def patrol(r, c, t, o, lc, lt, pcut, mode):
+def patrol(r, c, t, o, lc, lt, pcut, mode,xlim,ylim):
     """
     PATROL: Epigenome Variable Features Detection Algorithm.
 
@@ -713,7 +713,7 @@ def patrol(r, c, t, o, lc, lt, pcut, mode):
     start_time = datetime.now()
     script_name = os.path.basename(__file__)
     rprint(
-        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -pcut {pcut} -xlim {xlim} -ylim {ylim}"
+        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -pcut {pcut} -mode {mode} -xlim {xlim} -ylim {ylim}"
     )
 
     # Step 0: Check required input files exist
