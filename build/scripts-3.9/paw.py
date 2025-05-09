@@ -868,6 +868,7 @@ def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p):
 
       3. Estimate the fitting through spike-in data then apply      
         
+
          $ paw.py -r si_peaks.bed -c si_wt.bw -t si_ko.bw -o results/si -csf mm10.chrom.sizes
 
          #read the background scaling factor from the line of Step 4/8, say 0.734

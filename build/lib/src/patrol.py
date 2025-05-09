@@ -703,7 +703,7 @@ def patrol(r, c, t, o, lc, lt, pcut, mode,xlim,ylim):
     """
     PATROL: Epigenome Variable Features Detection Algorithm.
 
-    This script detects highly variable genomic features by performing either a two-pass Mahalanobis Distance test ('MD' mode) or Fold Change/Poisson test ('FC' mode) on normalized ChIP-seq/DNase-seq/ATAC-seq data by paw.py. It quantifies signals over specified regions, estimates background noise, and identifies differential signals using statistical tests. It Outputs statistics, MA plots, aggregate plots, and BED files of significant regions.
+    This script detects highly variable genomic features by performing either a two-pass Mahalanobis Distance test ('MD' mode), or Fold Change/Poisson test ('FC' mode), or just Fold Change (FCn) on normalized ChIP-seq/DNase-seq/ATAC-seq data by paw.py. It quantifies signals over specified regions, estimates background noise, and identifies differential signals using statistical tests. It Outputs statistics, MA plots, aggregate plots, and BED files of significant regions.
 
     Examples:
 

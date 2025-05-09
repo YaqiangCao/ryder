@@ -68,9 +68,10 @@ Usage: paw.py [OPTIONS]
        $ paw.py -r peaks.bed -c rep1.bw -t rep2.bw -o results/test -csf
        mm10.chrom.sizes
 
-    3. Estimate the fitting through spike-in data then apply                 $
-    paw.py -r si_peaks.bed -c si_wt.bw -t si_ko.bw -o results/si -csf
-    mm10.chrom.sizes
+    3. Estimate the fitting through spike-in data then apply
+
+       $ paw.py -r si_peaks.bed -c si_wt.bw -t si_ko.bw -o results/si -csf
+       mm10.chrom.sizes
 
        #read the background scaling factor from the line of Step 4/8, say
        0.734
@@ -141,7 +142,8 @@ Options:
   -h, --help                      Show this message and exit.
 ```
 
-
+-------
+-------
 ### Detect variable features 
 ```
 Usage: patrol.py [OPTIONS]
@@ -149,11 +151,12 @@ Usage: patrol.py [OPTIONS]
   PATROL: Epigenome Variable Features Detection Algorithm.
 
   This script detects highly variable genomic features by performing either a
-  two-pass Mahalanobis Distance test ('MD' mode) or Fold Change/Poisson test
-  ('FC' mode) on normalized ChIP-seq/DNase-seq/ATAC-seq data by paw.py. It
-  quantifies signals over specified regions, estimates background noise, and
-  identifies differential signals using statistical tests. It Outputs
-  statistics, MA plots, aggregate plots, and BED files of significant regions.
+  two-pass Mahalanobis Distance test ('MD' mode), or Fold Change/Poisson test
+  ('FC' mode), or just Fold Change (FCn) on normalized ChIP-seq/DNase-
+  seq/ATAC-seq data by paw.py. It quantifies signals over specified regions,
+  estimates background noise, and identifies differential signals using
+  statistical tests. It Outputs statistics, MA plots, aggregate plots, and BED
+  files of significant regions.
 
   Examples:
 
@@ -189,5 +192,6 @@ Options:
   -h, --help              Show this message and exit.
 
 ```
+
 
 
