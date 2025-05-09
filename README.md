@@ -160,28 +160,34 @@ Usage: patrol.py [OPTIONS]
     $ patrol.py -r regions.bed -c control.bw -t treatment.bw -o results_diff
 
 Options:
-  -r TEXT        Path to a BED format file specifying regions of interest for
-                 differential analysis. Each region must have at least three
-                 columns: chromosome, start, and end. Example: regions.bed
-                 [required]
-  -o TEXT        Output file prefix. Several output files (statistics and
-                 plots) will be generated using this prefix. Example:
-                 results/test  [required]
-  -c TEXT        Path to the control sample bigWig file. This file should be
-                 normalized (e.g., to RPM). Example: control.bw  [required]
-  -lc TEXT       Label for the control sample (default: 'control').
-  -t TEXT        Path to the treatment sample bigWig file. This file should be
-                 normalized (e.g., to RPM). Example: treatment.bw  [required]
-  -lt TEXT       Label for the treatment sample (default: 'trt').
-  -pcut FLOAT    P-value cutoff for the two-pass Mahalanobis distance test if
-                 -mode is MD or Poisson test if -mode is FC. Regions with
-                 p-values below this cutoff are considered significant
-                 variable features. Default is 0.01.
-  -mode [MD|FC]  Variable feature detection mode: 'MD' (two-pass Mahalanobis
-                 distance test) or 'FC' (Fold Change > 2 with Poisson test).
-                 Default is FC.
-  -h, --help     Show this message and exit.
-```
+  -r TEXT                 Path to a BED format file specifying regions of
+                          interest for differential analysis. Each region must
+                          have at least three columns: chromosome, start, and
+                          end. Example: regions.bed  [required]
+  -o TEXT                 Output file prefix. Several output files (statistics
+                          and plots) will be generated using this prefix.
+                          Example: results/test  [required]
+  -c TEXT                 Path to the control sample bigWig file. This file
+                          should be normalized (e.g., to RPM). Example:
+                          control.bw  [required]
+  -lc TEXT                Label for the control sample (default: 'control').
+  -t TEXT                 Path to the treatment sample bigWig file. This file
+                          should be normalized (e.g., to RPM). Example:
+                          treatment.bw  [required]
+  -lt TEXT                Label for the treatment sample (default: 'trt').
+  -pcut FLOAT             P-value cutoff for the two-pass Mahalanobis distance
+                          test if -mode is MD or Poisson test if -mode is FC.
+                          Regions with p-values below this cutoff are
+                          considered significant variable features. Default is
+                          0.01.
+  -mode [MD|FC|FCn]       Variable feature detection mode: 'MD' (two-pass
+                          Mahalanobis distance test), 'FC' (Fold Change > 2
+                          with Poisson test), 'FCn' (Fold Change > 2 without
+                          Poisson test). Default is FCn.
+  -xlim <FLOAT FLOAT>...  Set xlim for the MA plot.
+  -ylim <FLOAT FLOAT>...  Set ylim for the MA plot.
+  -h, --help              Show this message and exit.
 
+```
 
 
