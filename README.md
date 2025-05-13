@@ -1,6 +1,4 @@
-# Ryder: Epigenome Normalization with Internal Reference and Variable Feature Analysis
-
-![Rescuing Your Data with Paw Patrol!](https://i0.wp.com/cardiffmummysays.com/wp-content/uploads/2016/04/Paw-Patrol-5.jpg?resize=930%2C360)   
+# Ryder: Epigenome Normalization with Internal Reference and Variable Feature Analysis ![](https://github.com/YaqiangCao/ryder/blob/main/pawPatrol.png?raw=true)   
 
 ---
 ## Required python packages and other tools 
