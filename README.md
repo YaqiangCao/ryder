@@ -1,4 +1,5 @@
 # Ryder: Epigenome Normalization with Internal Reference and Variable Feature Analysis ![](https://github.com/YaqiangCao/ryder/blob/main/pawPatrol.png?raw=true)   
+<img src="./pawPatrol.png" width="10%" />
 
 ---
 ## Required python packages and other tools 
