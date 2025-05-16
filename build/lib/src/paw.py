@@ -28,6 +28,7 @@ History:
 2025-05-01: Add -mode option for linear fitting or normal distribution draw
 2025-05-02: Integrate signal region scaling factor
 2025-05-02: remove GMM and estimate a noise cutoff, much faster and general applied
+2025-05-15: Add a mode for data like MNase-seq or some time can not distinguish background and signal
 """
 
 __author__ = "CAO Yaqiang"
@@ -265,14 +266,15 @@ def showSig(regions,
         chrom = region[0]
         center = int((region[1] + region[2]) / 2)
         try:
-            control_vals = bw_control.values(chrom, center - ext, center + ext + 1)
+            control_vals = bw_control.values(chrom, center - ext,
+                                             center + ext + 1)
         except:
             continue
         control_vals = np.nan_to_num(control_vals)
         control_signal += control_vals
         try:
             treatment_vals = bw_treatment.values(chrom, center - ext,
-                                             center + ext + 1)
+                                                 center + ext + 1)
         except:
             continue
         treatment_vals = np.nan_to_num(treatment_vals)
@@ -514,8 +516,12 @@ def estFit(fg_regions,
     return [alpha, beta]
 
 
-
-def getNoiseCut(fg_regions, bg_regions, bw_filepath, out_prefix, ext=5000, bins=5):
+def getNoiseCut(fg_regions,
+                bg_regions,
+                bw_filepath,
+                out_prefix,
+                ext=5000,
+                bins=5):
     """
     Get a noise level cutoff to classify background and signal regions for the target sample.
 
@@ -527,7 +533,7 @@ def getNoiseCut(fg_regions, bg_regions, bw_filepath, out_prefix, ext=5000, bins=
     :param ext: int, extension size for nearby regions (bp).
     :return: tuple (tgtGmm, tgt_class_mapping)
     """
- 
+
     # Get signals and apply log2 transformation on positive values only
     fg_signal = getBwSig(fg_regions, bw_filepath, bins=bins).reshape(-1)
     fg_signal = np.log2(fg_signal[fg_signal > 0])
@@ -628,7 +634,7 @@ def getFgBgs(refPeaks):
     for region in fg_regions:
         chrom, start, end = region
         d = end - start
-        for ext in [1, 2, 3,4, 5, 10]:
+        for ext in [1, 2, 3, 4, 5, 10]:
             s = start - ext * d
             e = end - ext * d
             if checkBgOverlaps(chrom, s, e, refCov, refLims):
@@ -690,7 +696,14 @@ def removeOutliers(refPeaks, control_bw, treatment_bw, pcut=0.1):
 ######################################
 # Normalization Functions            #
 ######################################
-def _norm(bw_filepath, chrom, noise, bg_sf, fg_sf, sig_sf_params, fout):
+def _norm(bw_filepath,
+          chrom,
+          noise,
+          bg_sf,
+          fg_sf,
+          sig_sf_params,
+          fout,
+          flat=False):
     """
     Normalize signal values for a given chromosome and write results to an output bedGraph file.
 
@@ -702,6 +715,7 @@ def _norm(bw_filepath, chrom, noise, bg_sf, fg_sf, sig_sf_params, fout):
     :param fg_sf: float, reference scaling factor.
     :param sig_sf_params: list [alpha, beta] for signal scaling.
     :param fout: str, output file path for bedGraph.
+    :param flat: flat, whether the data is hard to distinguish background and signal
     """
     bwi = pyBigWig.open(bw_filepath)
     intervals = bwi.intervals(chrom)
@@ -710,25 +724,32 @@ def _norm(bw_filepath, chrom, noise, bg_sf, fg_sf, sig_sf_params, fout):
             v = interval[-1]
             if v == 0.0:
                 continue
-            if v <= noise:  # noise
-                v = v * bg_sf
-            else:  # signal
+            if flat:
                 v = 2**(np.log2(v * fg_sf) * sig_sf_params[0] +
                         sig_sf_params[1])
+            else:
+                if v <= noise:  # noise
+                    v = v * bg_sf
+                else:  # signal
+                    v = 2**(np.log2(v * fg_sf) * sig_sf_params[0] +
+                            sig_sf_params[1])
             start = interval[0]
             end = interval[1]
             fo.write(f"{chrom}\t{start}\t{end}\t{v}\n")
     bwi.close()
 
 
-def normTgtBw(bw_filepath,
-              noise,
-              bg_sf,
-              fg_sf,
-              sig_sf_params,
-              fnOut,
-              n_jobs=2,
-              csf=""):
+def normTgtBw(
+    bw_filepath,
+    noise,
+    bg_sf,
+    fg_sf,
+    sig_sf_params,
+    fnOut,
+    n_jobs=2,
+    csf="",
+    flat=False,
+):
     """
     Normalize the target sample bigWig file and convert the output bedGraph to bigWig format.
 
@@ -748,7 +769,7 @@ def normTgtBw(bw_filepath,
 
     Parallel(n_jobs=n_jobs, backend="multiprocessing")(
         delayed(_norm)(bw_filepath, chrom, noise, bg_sf, fg_sf, sig_sf_params,
-                       os.path.join(temp_dir, f"{chrom}.bdg"))
+                       os.path.join(temp_dir, f"{chrom}.bdg"), flat)
         for chrom in tqdm(chroms))
     bdg_files = sorted(glob(os.path.join(temp_dir, "*.bdg")))
     os.system("cat %s > %s.bdg" % (" ".join(bdg_files), fnOut))
@@ -838,7 +859,14 @@ def normTgtBw(bw_filepath,
     help=
     "Number of CPUs to be used for parallel processing. Increasing this value can reduce processing time if multiple cores are available. Default: 2."
 )
-def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p):
+@click.option(
+    "-flat",
+    default=False,
+    type=bool,
+    help=
+    "Set this flag if data is MNase-seq or in 4_NoiseCutoff.pdf can not distinguish foreground signal and background noise. Will ignore the scaling factor for the background region."
+)
+def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat=False):
     """
     PAW: Cross-sample Epigenome Data Normalization with Internal Reference Algorithm.
     
@@ -881,7 +909,7 @@ def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p):
     start_time = datetime.now()
     script_name = os.path.basename(__file__)
     rprint(
-        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -mode {mode} -pred {pred} -ext {ext} -p {p} -csf {csf}"
+        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -mode {mode} -pred {pred} -ext {ext} -p {p} -csf {csf} -flat {flat}"
     )
 
     # Step 0: Check input files exist
@@ -981,15 +1009,14 @@ def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p):
 
     # Step 8: Normalize the treatment sample bigWig file
     rprint(f"[{o}] Step 7/8: normalize target sample bigWig file.")
-    normTgtBw(
-        t,
-        noise,
-        bg_scaling_factor,
-        fg_scaling_factor,
-        [alpha, beta],
-        o + "_" + lt,
-        n_jobs=p,
-        csf=csf)
+    normTgtBw(t,
+              noise,
+              bg_scaling_factor,
+              fg_scaling_factor, [alpha, beta],
+              o + "_" + lt,
+              n_jobs=p,
+              csf=csf,
+              flat=flat)
 
     # Step 9: Visualize corrected signals around reference centers
     rprint(f"[{o}] Step 8/8: check normalized signals")
