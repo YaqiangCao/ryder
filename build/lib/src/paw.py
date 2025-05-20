@@ -868,7 +868,14 @@ def normTgtBw(
     help=
     "Set this flag if data is MNase-seq or in 4_NoiseCutoff.pdf can not distinguish foreground signal and background noise. Will ignore the scaling factor for the background region."
 )
-def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat=False):
+@click.option(
+    "-pcut",
+    default=0.1,
+    type=float,
+    help=
+    "P-value cutoff for the Mahalanobis distance test to remove noise. Regions with p-values below this cutoff are considered outliers and removed from scaling factor modeling. Default is 0.1."
+)
+def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat=False,pcut=0.1):
     """
     PAW: Cross-sample Epigenome Data Normalization with Internal Reference Algorithm.
     
@@ -911,7 +918,7 @@ def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat=False):
     start_time = datetime.now()
     script_name = os.path.basename(__file__)
     rprint(
-        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -mode {mode} -pred {pred} -ext {ext} -p {p} -csf {csf} -flat {flat}"
+        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -mode {mode} -pred {pred} -ext {ext} -p {p} -csf {csf} -flat {flat} -pcut {pcut}"
     )
 
     # Step 0: Check input files exist
@@ -927,7 +934,7 @@ def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat=False):
 
     # Step 2: Remove outliers from reference peaks using the Mahalanobis Distance test
     rprint(f"[{o}] Step 1/8: remove potential outliers with MD test")
-    filtered_peaks = removeOutliers(refPeaks, c, t, pcut=0.1)
+    filtered_peaks = removeOutliers(refPeaks, c, t, pcut=pcut)
 
     # Step 3: Generate foreground (signal) and background regions
     fg_regions, bg_regions = getFgBgs(filtered_peaks)

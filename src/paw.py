@@ -918,7 +918,7 @@ def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat=False,pcut=0.1):
     start_time = datetime.now()
     script_name = os.path.basename(__file__)
     rprint(
-        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -mode {mode} -pred {pred} -ext {ext} -p {p} -csf {csf} -flat {flat}"
+        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -mode {mode} -pred {pred} -ext {ext} -p {p} -csf {csf} -flat {flat} -pcut {pcut}"
     )
 
     # Step 0: Check input files exist
