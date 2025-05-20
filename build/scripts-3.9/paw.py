@@ -862,6 +862,8 @@ def normTgtBw(
 @click.option(
     "-flat",
     default=False,
+    required=False,
+    is_flag=True,
     type=bool,
     help=
     "Set this flag if data is MNase-seq or in 4_NoiseCutoff.pdf can not distinguish foreground signal and background noise. Will ignore the scaling factor for the background region."
