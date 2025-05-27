@@ -719,6 +719,8 @@ def _norm(bw_filepath,
     """
     bwi = pyBigWig.open(bw_filepath)
     intervals = bwi.intervals(chrom)
+    if intervals is None:
+        return 
     with open(fout, "w") as fo:
         for interval in intervals:
             v = interval[-1]
