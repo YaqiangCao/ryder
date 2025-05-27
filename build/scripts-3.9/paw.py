@@ -703,7 +703,7 @@ def _norm(bw_filepath,
           fg_sf,
           sig_sf_params,
           fout,
-          flat=False):
+          flat="none"):
     """
     Normalize signal values for a given chromosome and write results to an output bedGraph file.
 
@@ -715,7 +715,7 @@ def _norm(bw_filepath,
     :param fg_sf: float, reference scaling factor.
     :param sig_sf_params: list [alpha, beta] for signal scaling.
     :param fout: str, output file path for bedGraph.
-    :param flat: flat, whether the data is hard to distinguish background and signal
+    :param flat: str, none|fg|bg, when the data is hard to distinguish background and signal, select fg or bg to use with only one mode of scaling
     """
     bwi = pyBigWig.open(bw_filepath)
     intervals = bwi.intervals(chrom)
@@ -724,10 +724,12 @@ def _norm(bw_filepath,
             v = interval[-1]
             if v == 0.0:
                 continue
-            if flat:
+            if flat == "fg":
                 v = 2**(np.log2(v * fg_sf) * sig_sf_params[0] +
                         sig_sf_params[1])
-            else:
+            elif flat == "bg":
+                v = v * bg_sf
+            else: #default mode
                 if v <= noise:  # noise
                     v = v * bg_sf
                 else:  # signal
@@ -861,12 +863,11 @@ def normTgtBw(
 )
 @click.option(
     "-flat",
-    default=False,
+    default="none",
     required=False,
-    is_flag=True,
-    type=bool,
+    type=click.Choice(["none","fg","bg"]),
     help=
-    "Set this flag if data is MNase-seq or in 4_NoiseCutoff.pdf can not distinguish foreground signal and background noise. Will ignore the scaling factor for the background region."
+    "Set this flag if data is MNase-seq or in 4_NoiseCutoff.pdf can not distinguish foreground signal and background noise. Fg mode will ignore the scaling factor for the background region and bg mode will only use the scaling factor estimated from background region."
 )
 @click.option(
     "-pcut",
@@ -913,6 +914,10 @@ def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat=False,pcut=0.1):
          #read the signal region fitting parameters alpha and beta from the line of Step 5/8 , say 0.934 * log2(KO) -1.433
 
          $ paw.py -r peaks.bed -c wt.bw -t ko.bw -o results/data -pred 0.734 0.934 -1.433 -csf mm10.chrom.sizes
+
+      4. only apply the scaling factor estimated from background (or peaks) such as the MNase-seq data
+
+         $ paw.py -r Nuc.bed -c wt.bw -t ko.bw -o results/data -flat bg -csf mm10.chrom.sizes
 
     """
     start_time = datetime.now()
