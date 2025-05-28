@@ -994,11 +994,11 @@ def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat=False,pcut=0.1):
                              cpu=p)
         if beta > 0:
             rprint(
-                f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({fg_scaling_factor:.3f}{lt}) + {beta:.3f}"
+                f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({fg_scaling_factor:.3f} * {lt}) + {beta:.3f}"
             )
         else:
             rprint(
-                f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({fg_scaling_factor:.3f}{lt}) {beta:.3f}"
+                f"[{o}] Step 5/8: estimated linear fitting: log2({lt}) = {alpha:.3f} * log2({fg_scaling_factor:.3f} * {lt}) {beta:.3f}"
             )
     else:
         rprint(
