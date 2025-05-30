@@ -731,7 +731,7 @@ def _norm(bw_filepath,
                         sig_sf_params[1])
             elif flat == "bg":
                 v = v * bg_sf
-            else: #default mode
+            else: #default mode, none
                 if v <= noise:  # noise
                     v = v * bg_sf
                 else:  # signal
@@ -752,7 +752,7 @@ def normTgtBw(
     fnOut,
     n_jobs=2,
     csf="",
-    flat=False,
+    flat="none",
 ):
     """
     Normalize the target sample bigWig file and convert the output bedGraph to bigWig format.
@@ -878,7 +878,7 @@ def normTgtBw(
     help=
     "P-value cutoff for the Mahalanobis distance test to remove noise. Regions with p-values below this cutoff are considered outliers and removed from scaling factor modeling. Default is 0.1."
 )
-def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat=False,pcut=0.1):
+def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat="none",pcut=0.1):
     """
     PAW: Cross-sample Epigenome Data Normalization with Internal Reference Algorithm.
     
@@ -1024,11 +1024,17 @@ def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat=False,pcut=0.1):
     )
 
     # Step 8: Normalize the treatment sample bigWig file
-    rprint(f"[{o}] Step 7/8: normalize target sample bigWig file.")
+    if flat == "none":
+        rprint(f"[{o}] Step 7/8: normalize target sample bigWig file with -flat {flat}")
+    elif flat=="bg":
+        rprint(f"[{o}] Step 7/8: normalize target sample bigWig file with -flat {flat}; only use background scaling factor {bg_scaling_factor}")
+    else:
+        rprint(f"[{o}] Step 7/8: normalize target sample bigWig file with -flat {flat}; only use reference scaling parameters")
     normTgtBw(t,
               noise,
               bg_scaling_factor,
-              fg_scaling_factor, [alpha, beta],
+              fg_scaling_factor, 
+              [alpha, beta],
               o + "_" + lt,
               n_jobs=p,
               csf=csf,
