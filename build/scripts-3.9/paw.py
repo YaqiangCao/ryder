@@ -913,9 +913,11 @@ def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat="none",pcut=0.1):
 
          #read the background scaling factor from the line of Step 4/8, say 0.734
 
-         #read the signal region fitting parameters alpha and beta from the line of Step 5/8 , say 0.934 * log2(KO) -1.433
+         #read the reference scaling factor from the line of Step 4/8, say 1.223
 
-         $ paw.py -r peaks.bed -c wt.bw -t ko.bw -o results/data -pred 0.734 0.934 -1.433 -csf mm10.chrom.sizes
+         #read the signal region fitting parameters alpha and beta from the line of Step 5/8 , say 0.934 * log2(1.223*KO) -1.433
+
+         $ paw.py -r peaks.bed -c wt.bw -t ko.bw -o results/data -pred 0.734 1.223 0.934 -1.433 -csf mm10.chrom.sizes
 
       4. only apply the scaling factor estimated from background (or peaks) such as the MNase-seq data
 

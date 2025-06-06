@@ -74,11 +74,19 @@ Usage: paw.py [OPTIONS]
        #read the background scaling factor from the line of Step 4/8, say
        0.734
 
+       #read the reference scaling factor from the line of Step 4/8, say 1.223
+
        #read the signal region fitting parameters alpha and beta from the line
-       of Step 5/8 , say 0.934 * log2(KO) -1.433
+       of Step 5/8 , say 0.934 * log2(1.223*KO) -1.433
 
        $ paw.py -r peaks.bed -c wt.bw -t ko.bw -o results/data -pred 0.734
-       0.934 -1.433 -csf mm10.chrom.sizes
+       1.223 0.934 -1.433 -csf mm10.chrom.sizes
+
+    4. only apply the scaling factor estimated from background (or peaks) such
+    as the MNase-seq data
+
+       $ paw.py -r Nuc.bed -c wt.bw -t ko.bw -o results/data -flat bg -csf
+       mm10.chrom.sizes
 
 Options:
   -r TEXT                         Path to a BED format file specifying the
@@ -137,7 +145,20 @@ Options:
                                   processing. Increasing this value can reduce
                                   processing time if multiple cores are
                                   available. Default: 2.
+  -flat [none|fg|bg]              Set this flag if data is MNase-seq or in
+                                  4_NoiseCutoff.pdf can not distinguish
+                                  foreground signal and background noise. Fg
+                                  mode will ignore the scaling factor for the
+                                  background region and bg mode will only use
+                                  the scaling factor estimated from background
+                                  region.
+  -pcut FLOAT                     P-value cutoff for the Mahalanobis distance
+                                  test to remove noise. Regions with p-values
+                                  below this cutoff are considered outliers
+                                  and removed from scaling factor modeling.
+                                  Default is 0.1.
   -h, --help                      Show this message and exit.
+
 ```
 
 -------
@@ -188,7 +209,6 @@ Options:
   -xlim <FLOAT FLOAT>...  Set xlim for the MA plot.
   -ylim <FLOAT FLOAT>...  Set ylim for the MA plot.
   -h, --help              Show this message and exit.
-
 ```
 
 

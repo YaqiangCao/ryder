@@ -408,7 +408,7 @@ def showMDMA(
     ax.set_title(
         f"Signal Comparison\nMahalanobis P-value < {pcut} \n average > {_noise}"
     )
-    ax.set_xlabel(f"log2({treatment_label}) + log2({control_label})")
+    ax.set_xlabel(f"(log2({treatment_label}) + log2({control_label}))/2")
     ax.set_ylabel(f"log2({treatment_label}) - log2({control_label})")
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
@@ -487,7 +487,7 @@ def showFCMA(
     ax.set_title(
         f"Signal Comparison\n log2(fold change) > {mcut} \n average > {_noise}"
     )
-    ax.set_xlabel(f"log2({treatment_label}) + log2({control_label})")
+    ax.set_xlabel(f"(log2({treatment_label}) + log2({control_label}))/2")
     ax.set_ylabel(f"log2({treatment_label}) - log2({control_label})")
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
@@ -561,7 +561,7 @@ def showFCnMA(
     ax.set_title(
         f"Signal Comparison\n log2(fold change) > {mcut} \n average > {_noise}"
     )
-    ax.set_xlabel(f"log2({treatment_label}) + log2({control_label})")
+    ax.set_xlabel(f"(log2({treatment_label}) + log2({control_label}))/2")
     ax.set_ylabel(f"log2({treatment_label}) - log2({control_label})")
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
