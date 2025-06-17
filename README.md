@@ -2,7 +2,7 @@
 
 ---
 ## Required python packages and other tools 
-All requried other packages can be installed through conda or pip. 
+All required other packages can be installed through conda or pip. 
 
 python packages:
 ```
