@@ -29,6 +29,7 @@ History:
 2025-05-02: Integrate signal region scaling factor
 2025-05-02: remove GMM and estimate a noise cutoff, much faster and general applied
 2025-05-15: Add a mode for data like MNase-seq or some time can not distinguish background and signal
+2025-06-19: Add a parameter to control noise. 
 """
 
 __author__ = "CAO Yaqiang"
@@ -850,6 +851,13 @@ def normTgtBw(
     "Skip the modeling step and use previously estimated background/signal scaling factors (from Step 4/8) and log2 data linear fitting parameters (alpha and beta, from Step 5/8), such as those derived from spike-in data."
 )
 @click.option(
+    "-noise",
+    default=None,
+    type=float,
+    help=
+    "Noise cutoff to override default estimating."
+)
+@click.option(
     "-csf",
     required=True,
     type=str,
@@ -878,7 +886,7 @@ def normTgtBw(
     help=
     "P-value cutoff for the Mahalanobis distance test to remove noise. Regions with p-values below this cutoff are considered outliers and removed from scaling factor modeling. Default is 0.1."
 )
-def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat="none",pcut=0.1):
+def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat="none",noise=None,pcut=0.1):
     """
     PAW: Cross-sample Epigenome Data Normalization with Internal Reference Algorithm.
     
@@ -927,7 +935,7 @@ def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat="none",pcut=0.1):
     start_time = datetime.now()
     script_name = os.path.basename(__file__)
     rprint(
-        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -mode {mode} -pred {pred} -ext {ext} -p {p} -csf {csf} -flat {flat} -pcut {pcut}"
+        f"{script_name} -r {r} -o {o} -c {c} -t {t} -lc {lc} -lt {lt} -mode {mode} -pred {pred} -ext {ext} -p {p} -csf {csf} -flat {flat} -noise {noise} -pcut {pcut}"
     )
 
     # Step 0: Check input files exist
@@ -1019,11 +1027,16 @@ def paw(r, c, t, o, lc, lt, ext, mode, pred, csf, p, flat="none",pcut=0.1):
                beta=beta,
                mode=mode)
 
-    # Step 7: Train GMM for classification of target sample regions
-    noise = getNoiseCut(fg_regions, bg_regions, t, o, ext=ext)
-    rprint(
-        f"[{o}] Step 6/8: cutoff {noise} is used to classification signal vs. background."
-    )
+    # Step 7: estimate noise to distinguish signal and background region 
+    if noise is None:
+        noise = getNoiseCut(fg_regions, bg_regions, t, o, ext=ext)
+        rprint(
+            f"[{o}] Step 6/8: cutoff {noise} is used to classification signal vs. background."
+        )
+    else:
+        rprint(
+            f"[{o}] Step 6/8: user input cutoff {noise} is used to classification signal vs. background."
+        )
 
     # Step 8: Normalize the treatment sample bigWig file
     if flat == "none":

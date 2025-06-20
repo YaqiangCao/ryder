@@ -1,7 +1,6 @@
 .gitignore
 README.md
 setup.py
-tmp
 ryder.egg-info/PKG-INFO
 ryder.egg-info/SOURCES.txt
 ryder.egg-info/dependency_links.txt
