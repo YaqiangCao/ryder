@@ -400,7 +400,8 @@ def showMDMA(
     leg = ax.legend(frameon=False,
                     markerscale=0,
                     labelcolor=["gray", colors[0], colors[1]])
-    for handle in leg.legendHandles:
+    #for handle in leg.legendHandles:
+    for handle in leg.legend_handles:
         handle._sizes = [10]
     ax.axhline(0, color="gray", linestyle="--")
     ax.axvline(noise, color="gray", linestyle="--")
@@ -477,7 +478,8 @@ def showFCMA(
     leg = ax.legend(frameon=False,
                     markerscale=0,
                     labelcolor=["gray", colors[0], colors[1]])
-    for handle in leg.legendHandles:
+    #for handle in leg.legendHandles:
+    for handle in leg.legend_handles:
         handle._sizes = [10]
     ax.axhline(0, color="gray", linestyle="--")
     ax.axhline(mcut, color=colors[1], linestyle="--")
@@ -551,7 +553,8 @@ def showFCnMA(
     leg = ax.legend(frameon=False,
                     markerscale=0,
                     labelcolor=["gray", colors[0], colors[1]])
-    for handle in leg.legendHandles:
+    #for handle in leg.legendHandles:
+    for handle in leg.legend_handles:
         handle._sizes = [10]
     ax.axhline(0, color="gray", linestyle="--")
     ax.axhline(mcut, color=colors[1], linestyle="--")
