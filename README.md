@@ -22,9 +22,20 @@ Linux command line tools:
 ```
 bedGraphToBigWig
 ```
+---
+## Install from scratch with conda or [mamba](https://github.com/mamba-org/mamba) 
+```
+mamba env create -n ryder python=3.12
+conda activate ryder 
+mamba install numpy scipy pandas matplotlib seaborn click joblib tqdm scikit-learn 
+mamba install pybigwig ucsc-bedgraphtobigwig -c bioconda -c conda-forge
+git clone --depth=1 https://github.com/YaqiangCao/ryder
+cd ryder
+pip install ./
+```
 
 ---
-## Install 
+## Install with pre-installed packages
 ```
 git clone --depth=1 https://github.com/YaqiangCao/ryder
 cd ryder

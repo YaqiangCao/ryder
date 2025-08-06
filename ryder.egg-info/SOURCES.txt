@@ -9,4 +9,5 @@ ryder.egg-info/top_level.txt
 src/__init__.py
 src/patrol.py
 src/paw.py
+src/paw2.py
 test/run.sh

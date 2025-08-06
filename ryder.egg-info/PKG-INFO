@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: ryder
 Version: 1.0.0
 Summary: Epigenome normalization with internal reference and variable features identifications.
@@ -11,3 +11,21 @@ Classifier: Environment :: Console
 Classifier: Operating System :: MacOS :: MacOS X
 Classifier: Operating System :: POSIX
 Classifier: Topic :: Scientific/Engineering :: Bio-Informatics
+Requires-Dist: joblib
+Requires-Dist: numpy
+Requires-Dist: seaborn
+Requires-Dist: pandas
+Requires-Dist: scipy
+Requires-Dist: scikit-learn
+Requires-Dist: matplotlib
+Requires-Dist: tqdm
+Requires-Dist: pyBigWig
+Requires-Dist: click
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: project-url
+Dynamic: requires-dist
+Dynamic: summary
