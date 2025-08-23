@@ -326,7 +326,7 @@ def getPoissonP(con, trt, tot=20):
     for i in con.index:
         _c = int(con[i] * tot)
         _t = int(trt[i] * tot)
-        c = min(_c, _t)
+        c = max(1,min(_c, _t))
         t = max(_c, _t)
         p = max([1e-300, poisson.sf(t - 1.0, c)])
         ps[i] = p
