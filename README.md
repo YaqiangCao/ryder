@@ -133,7 +133,10 @@ Options:
                                   Model (GMM). For narrow peaks, a typical
                                   value is 10,000 bp. For broad peaks (e.g.,
                                   H3K27me3), consider increasing this value
-                                  (e.g., 50,000 bp).
+                                  (e.g., 50,000 bp). For some or specific
+                                  DNase-seq/ATAC-seq footprinting analysis,
+                                  narrow down to 200 if default one does not
+                                  work well.
   -mode [norm|lr]                 Specifies the method used to draw the
                                   distribution of target sample to reference
                                   sample. Available options are norm (z-score
@@ -147,6 +150,7 @@ Options:
                                   (from Step 4/8) and log2 data linear fitting
                                   parameters (alpha and beta, from Step 5/8),
                                   such as those derived from spike-in data.
+  -noise FLOAT                    Noise cutoff to override default estimating.
   -csf TEXT                       Path to the chromosome size file, which is
                                   required to convert bedGraph files to bigWig
                                   format. This file can be generated using the
@@ -220,6 +224,7 @@ Options:
   -xlim <FLOAT FLOAT>...  Set xlim for the MA plot.
   -ylim <FLOAT FLOAT>...  Set ylim for the MA plot.
   -h, --help              Show this message and exit.
+
 ```
 
 
