@@ -1,4 +1,7 @@
-# Ryder: Epigenome Normalization with Internal Reference and Variable Feature Analysis <img src="./pawPatrol.png" width="5%" />
+# Ryder: Epigenome normalization using a two-tier model and internal reference regions <img src="./pawPatrol.png" width="5%" />
+---
+## Introduction   
+Ryder is a flexible Python package for the normalization and differential analysis of epigenomic data. It leverages stable internal reference regions to correct for technical artifacts genome-wide, supporting a wide range of assays including ChIP-seq, CUT&RUN, ATAC-seq, DNase-seq, and MNase-seq.
 
 ---
 ## Required python packages and other tools 
@@ -42,6 +45,9 @@ cd ryder
 pip install ./
 ```
 
+---
+## Demo 
+All datasets and usage examples required to reproduce the key analyses presented in the manuscript are available in the [demo](https://github.com/YaqiangCao/ryder/tree/main/demo) directory.  
 ---
 ## Usage
 
@@ -227,5 +233,5 @@ Options:
 
 ```
 
-
-
+---
+*The package name is lovingly inspired by my son, Will. Its name, along with the `paw.py` and `patrol.py` scripts, was inspired by the many hours we spent watching PAW Patrol together during its development.*
