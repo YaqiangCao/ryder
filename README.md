@@ -3,6 +3,9 @@
 ## Introduction   
 Ryder is a flexible Python package for the normalization and differential analysis of epigenomic data. It leverages stable internal reference regions to correct for technical artifacts genome-wide, supporting a wide range of assays including ChIP-seq, CUT&RUN, ATAC-seq, DNase-seq, and MNase-seq.
 
+If you find Ryder useful, please give us a star at github and cite our paper:
+Yaqiang Cao, Guangzhe Ge, and Keji Zhao (2026) "Ryder: Epigenome normalization using a two-tier model and internal reference regions"
+
 ---
 ## Required python packages and other tools 
 All required other packages can be installed through conda or pip. 
