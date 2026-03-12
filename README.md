@@ -49,8 +49,7 @@ pip install ./
 ```
 
 ---
-## Demo 
-
+## Demo      
 All datasets and usage examples required to reproduce the key analyses presented in the manuscript are available in the [demo](https://github.com/YaqiangCao/ryder/tree/main/demo) directory.  
 ---
 ## Usage
