@@ -7,7 +7,7 @@ If you find Ryder useful, please give us a star at github and cite our paper:
 Yaqiang Cao, Guangzhe Ge, and Keji Zhao (2026) "Ryder: Epigenome normalization using a two-tier model and internal reference regions"
 
 ---
-## Required python packages and other tools 
+### Required python packages and other tools 
 All required other packages can be installed through conda or pip. 
 
 python packages:
@@ -29,7 +29,7 @@ Linux command line tools:
 bedGraphToBigWig
 ```
 ---
-## Install from scratch with conda or [mamba](https://github.com/mamba-org/mamba) 
+### Install from scratch with conda or [mamba](https://github.com/mamba-org/mamba) 
 ```
 mamba env create -n ryder python=3.12
 conda activate ryder 
@@ -41,7 +41,7 @@ pip install ./
 ```
 
 ---
-## Install with pre-installed packages
+### Install with pre-installed packages
 ```
 git clone --depth=1 https://github.com/YaqiangCao/ryder
 cd ryder
@@ -50,6 +50,7 @@ pip install ./
 
 ---
 ## Demo 
+
 All datasets and usage examples required to reproduce the key analyses presented in the manuscript are available in the [demo](https://github.com/YaqiangCao/ryder/tree/main/demo) directory.  
 ---
 ## Usage
@@ -237,4 +238,4 @@ Options:
 ```
 
 ---
-*The package name is lovingly inspired by my son, Will. Its name, along with the `paw.py` and `patrol.py` scripts, was inspired by the many hours we spent watching PAW Patrol together during its development.*
+*The package's name, along with the `paw.py` and `patrol.py` scripts, was inspired by the many hours my son Will and I spent watching PAW Patrol together during its development. Whenever a job's too big, no pup's too small!*
