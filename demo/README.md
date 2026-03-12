@@ -1,12 +1,14 @@
 ## Ryder: Epigenome Normalization and Variable Feature Identification
 
-Ryder is a flexible Python package for the normalization and differential analysis of epigenomic data. It leverages stable internal reference regions to correct for technical artifacts genome-wide, supporting a wide range of assays including ChIP-seq, CUT&RUN, ATAC-seq, DNase-seq, and MNase-seq.     
+Ryder is a flexible Python package for the normalization and differential analysis of epigenomic data. It leverages stable internal reference regions to correct for technical artifacts genome-wide, supporting a wide range of assays including ChIP-seq, CUT&RUN, ATAC-seq, DNase-seq, and MNase-seq.      
+
 This document provides instructions for using the demo datasets provided with this repository to reproduce the key results presented in our manuscript.
 
+---
 ### Demo Datasets Usage
 
 The following section details the commands to run Ryder on each of the provided datasets, corresponding to the panels in Figure 1 of our manuscript.
-First, decompress the desired demo data package. For example:
+First, download and decompress the desired demo data package. For example:
 
 ``` Bash
 wget https://hpc.nih.gov/~caoy7/pub/9.ryder/1.Mice_DN3_GATA3_KO_DNase-seq.tar.gz 
@@ -22,20 +24,15 @@ patrol.py -c ./DNase-seq_DN3_GATA3_WT.bw -t ./normalized_KO.bw -lc WT -lt KO -r 
 ```
 
 
+---
+### Details of Data   
 
-1. DNase-seq in GATA3 KO Mouse Thymocytes
+#### 1. DNase-seq in GATA3 KO Mouse Thymocytes
 
-(Reproduces Figure 1A, B, D, E)
 This dataset contains DNase-seq data from wild-type (WT) and GATA3 knockout (KO) mouse DN3 thymocytes. The goal is to normalize the data and identify differential accessible sites.
-Dataset: 1.Mice_DN3_GATA3_KO_DNase-seq.tar.gz
-Command:
-Bash
-# Step 1: Normalize the GATA3 KO sample against the WT control
-paw.py -c WT.bw -t GATA3_KO.bw -r reference/mm10_invariant_ctcf.bed -n GATA3_KO_normalized --plot
+Dataset: [1.Mice_DN3_GATA3_KO_DNase-seq.tar.gz](https://hpc.nih.gov/~caoy7/pub/9.ryder/1.Mice_DN3_GATA3_KO_DNase-seq.tar.gz)
 
-# Step 2: Call differential sites between WT and normalized KO data
-patrol.py -c WT.bw -t GATA3_KO_normalized.bw -r gata3_bound_dhs.bed -n GATA3_KO_vs_WT_differential --plot
-2. DNase-seq in BRG1-AID Mouse Fibroblasts with Spike-in
+#### 2. DNase-seq in BRG1-AID Mouse Fibroblasts with Spike-in
 
 (Reproduces Figure 1I)
 This dataset contains DNase-seq data from WT and BRG1-AID mouse fibroblasts, with human 293T cells used as a spike-in control. This example shows how to perform internal reference normalization even when spike-ins are present.
