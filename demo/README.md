@@ -1,4 +1,4 @@
-# Ryder: Epigenome normalization using a two-tier model and internal reference regions <img src="./pawPatrol.png" width="5%" />
+# Ryder: Epigenome normalization using a two-tier model and internal reference regions
 
 Ryder is a flexible Python package for the normalization and differential analysis of epigenomic data. It leverages stable internal reference regions to correct for technical artifacts genome-wide, supporting a wide range of assays including ChIP-seq, CUT&RUN, ATAC-seq, DNase-seq, and MNase-seq.      
 
@@ -8,9 +8,11 @@ This document provides instructions for using the demo datasets provided with th
 ### Demo Datasets Usage
 
 The following section details the commands to run Ryder on each of the provided datasets, corresponding to the panels in Figure 1 of our manuscript.
-First, download and decompress the desired demo data package in this ryder/demo folder. For example:
+First, download and decompress the desired demo data package in this ryder/demo/demoData folder. For example:
 
 ``` Bash
+mkdir demoData 
+cd demoData 
 wget https://hpc.nih.gov/~caoy7/pub/9.ryder/1.Mice_DN3_GATA3_KO_DNase-seq.tar.gz 
 tar -xzvf 1.Mice_DN3_GATA3_KO_DNase-seq.tar.gz
 ```

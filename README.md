@@ -9,7 +9,7 @@ Yaqiang Cao, Guangzhe Ge, and Keji Zhao (2026) "Ryder: Epigenome normalization u
 
 ---
 ### Required python packages and other tools 
-All required other packages can be installed through conda or pip. 
+Al required other packages can be installed through conda or pip. 
 
 python packages:
 ```
