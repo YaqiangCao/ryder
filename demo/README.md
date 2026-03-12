@@ -60,7 +60,7 @@ Dataset: [6.human_PC90_EZH2_Inhibitor_ChIP-seq.tar.gz](https://hpc.nih.gov/~caoy
 Reference: [Egan et al.](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0166438)     
 
 
-#### 7. H3K9ac ChIP-seq in HDAC Inhibitor-Treated HeLa Cells
-This dataset contains H3K9ac ChIP-seq data from HeLa cells treated with an HDAC inhibitor (TSA), which causes a global increase in histone acetylation. Please note, the ratio of 2.5 folds spike-in was not included, which actually works but the H3K9ac signal was low and in reality no one could chose a 'wild west' ratio like this.      
+#### 7. H3K9ac ChIP-seq in HDAC Inhibitor-Treated HeLa Cells     
+This dataset contains H3K9ac ChIP-seq data from HeLa cells treated with an HDAC inhibitor (TSA), which causes a global increase in histone acetylation. The 2.5-fold spike-in condition was omitted from this demo, as its low signal and extreme ratio make it an unrealistic use case.    
 Dataset: [7.human_HeLa_H3K9ac_TSA_ChIP-seq.tar.gz](https://hpc.nih.gov/~caoy7/pub/9.ryder/7.human_HeLa_H3K9ac_TSA_ChIP-seq.tar.gz)      
 Reference: [Patel et al.](https://www.nature.com/articles/s41587-024-02377-y)  
