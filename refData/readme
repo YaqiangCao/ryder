@@ -1,1 +1,2 @@
-hg38_CTCF_constitutive.bed: ![link](https://zanglab.github.io/data/cancerCTCF/data/union_binding_occupancy_score_GT3.bed); refrence: Fang, Celestia, et al. "Cancer-specific CTCF binding facilitates oncogenic transcriptional dysregulation." Genome biology 21 (2020): 1-30.
+hg38_CTCF_constitutive.bed: [link](https://zanglab.github.io/data/cancerCTCF/data/union_binding_occupancy_score_GT3.bed);     
+refrence: Fang, Celestia, et al. "Cancer-specific CTCF binding facilitates oncogenic transcriptional dysregulation." Genome biology 21 (2020): 1-30.
