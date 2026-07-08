@@ -4,6 +4,7 @@
 
 [![Language](https://img.shields.io/github/languages/top/YaqiangCao/ryder)](https://img.shields.io/github/languages/top/YaqiangCao/ryder) 
 [![Stars](https://img.shields.io/github/stars/YaqiangCao/ryder?logo=GitHub&color=yellow)](https://github.com/YaqiangCao/ryder/stargazers) 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21267457.svg)](https://doi.org/10.5281/zenodo.21267457)
 <img alt="ViewCount" src="https://views.whatilearened.today/views/github/YaqiangCao/ryder.svg">
 
 </div>
