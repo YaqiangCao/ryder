@@ -1,0 +1,65 @@
+name: Update clone-count badge
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-badge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Fetch GitHub clone traffic and write Shields endpoint JSON
+        env:
+          TRAFFIC_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p badges
+
+          curl -sS -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${TRAFFIC_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2026-03-10" \
+            "https://api.github.com/repos/YaqiangCao/ryder/traffic/clones?per=day" \
+            > traffic.json
+
+          if jq -e '.message? // empty' traffic.json >/dev/null; then
+            cat traffic.json
+            echo "GitHub API returned an error. Check that TRAFFIC_TOKEN has Administration: read permission for YaqiangCao/ryder."
+            exit 1
+          fi
+
+          COUNT=$(jq -r '.count // 0' traffic.json)
+          UNIQUES=$(jq -r '.uniques // 0' traffic.json)
+
+          jq -n \
+            --arg count "$COUNT" \
+            --arg uniques "$UNIQUES" \
+            '{
+              schemaVersion: 1,
+              label: "clones (14d)",
+              message: ($count + " total / " + $uniques + " unique"),
+              color: "blue",
+              namedLogo: "github"
+            }' > badges/clone-count.json
+
+          cat badges/clone-count.json
+
+      - name: Commit updated badge JSON
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add badges/clone-count.json
+          git diff --cached --quiet || git commit -m "Update clone-count badge"
+          git push
