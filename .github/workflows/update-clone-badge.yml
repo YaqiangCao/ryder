@@ -1,65 +1,144 @@
-name: Update clone-count badge
+name: Update Ryder clone-count badge
 
 on:
   schedule:
-    - cron: "23 5 * * *"
+    - cron: "7 8 * * *"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  OWNER: YaqiangCao
+  REPO: ryder
+  GIST_ID: 3e13bd554104e813cad0dc10413389c3
+  GIST_FILE: ryder_clone.json
 
 jobs:
-  update-badge:
+  update:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Fetch GitHub clone traffic and write Shields endpoint JSON
+      - name: Fetch latest GitHub clone traffic
         env:
-          TRAFFIC_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
+          TOKEN: ${{ secrets.RYDER_TRAFFIC_GIST_TOKEN }}
         run: |
           set -euo pipefail
-
-          mkdir -p badges
 
           curl -sS -L \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${TRAFFIC_TOKEN}" \
-            -H "X-GitHub-Api-Version: 2026-03-10" \
-            "https://api.github.com/repos/YaqiangCao/ryder/traffic/clones?per=day" \
-            > traffic.json
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${OWNER}/${REPO}/traffic/clones?per=day" \
+            > current.json
 
-          if jq -e '.message? // empty' traffic.json >/dev/null; then
-            cat traffic.json
-            echo "GitHub API returned an error. Check that TRAFFIC_TOKEN has Administration: read permission for YaqiangCao/ryder."
+          cat current.json
+
+          if jq -e '.message? // empty' current.json >/dev/null; then
+            echo "GitHub API returned an error. Check RYDER_TRAFFIC_GIST_TOKEN permissions."
             exit 1
           fi
 
-          COUNT=$(jq -r '.count // 0' traffic.json)
-          UNIQUES=$(jq -r '.uniques // 0' traffic.json)
-
-          jq -n \
-            --arg count "$COUNT" \
-            --arg uniques "$UNIQUES" \
-            '{
-              schemaVersion: 1,
-              label: "clones (14d)",
-              message: ($count + " total / " + $uniques + " unique"),
-              color: "blue",
-              namedLogo: "github"
-            }' > badges/clone-count.json
-
-          cat badges/clone-count.json
-
-      - name: Commit updated badge JSON
+      - name: Download previous accumulated clone counts from gist
         run: |
           set -euo pipefail
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          curl -fsSL \
+            "https://gist.githubusercontent.com/${OWNER}/${GIST_ID}/raw/${GIST_FILE}" \
+            -o previous.json \
+            || echo '{"count":0,"uniques":0,"clones":[]}' > previous.json
 
-          git add badges/clone-count.json
-          git diff --cached --quiet || git commit -m "Update clone-count badge"
-          git push
+      - name: Merge clone counts
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          with open("current.json", "r", encoding="utf-8") as f:
+              current = json.load(f)
+
+          try:
+              with open("previous.json", "r", encoding="utf-8") as f:
+                  previous = json.load(f)
+          except Exception:
+              previous = {"count": 0, "uniques": 0, "clones": []}
+
+          merged = {}
+
+          for item in previous.get("clones", []):
+              if "timestamp" in item:
+                  merged[item["timestamp"]] = {
+                      "timestamp": item["timestamp"],
+                      "count": int(item.get("count", 0)),
+                      "uniques": int(item.get("uniques", 0)),
+                  }
+
+          for item in current.get("clones", []):
+              if "timestamp" in item:
+                  merged[item["timestamp"]] = {
+                      "timestamp": item["timestamp"],
+                      "count": int(item.get("count", 0)),
+                      "uniques": int(item.get("uniques", 0)),
+                  }
+
+          clones = [merged[timestamp] for timestamp in sorted(merged)]
+
+          output = {
+              "count": sum(item["count"] for item in clones),
+              "uniques": sum(item["uniques"] for item in clones),
+              "clones": clones,
+          }
+
+          with open("ryder_clone.json", "w", encoding="utf-8") as f:
+              json.dump(output, f, indent=4)
+              f.write("\n")
+
+          print(json.dumps({
+              "count": output["count"],
+              "uniques": output["uniques"],
+              "n_days": len(output["clones"])
+          }, indent=2))
+          PY
+
+      - name: Update Ryder clone-count file in gist
+        env:
+          TOKEN: ${{ secrets.RYDER_TRAFFIC_GIST_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          content = Path("ryder_clone.json").read_text(encoding="utf-8")
+
+          payload = {
+              "description": "Clone statistics badges for YaqiangCao repositories",
+              "files": {
+                  "ryder_clone.json": {
+                      "content": content
+                  }
+              }
+          }
+
+          Path("payload.json").write_text(json.dumps(payload), encoding="utf-8")
+          PY
+
+          curl -sS -L -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -H "Content-Type: application/json" \
+            --data @payload.json \
+            "https://api.github.com/gists/${GIST_ID}" \
+            > update_response.json
+
+          if jq -e '.message? // empty' update_response.json >/dev/null; then
+            cat update_response.json
+            echo "Gist update failed."
+            exit 1
+          fi
+
+          echo "Updated ${GIST_FILE} in gist ${GIST_ID}"
