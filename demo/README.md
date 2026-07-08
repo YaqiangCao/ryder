@@ -66,3 +66,10 @@ Reference: [Egan et al.](https://journals.plos.org/plosone/article?id=10.1371/jo
 This dataset contains H3K9ac ChIP-seq data from HeLa cells treated with an HDAC inhibitor (TSA), which causes a global increase in histone acetylation. The 2.5-fold spike-in condition was omitted from this demo, as its low signal and extreme ratio make it an unrealistic use case.    
 Dataset: [7.human_HeLa_H3K9ac_TSA_ChIP-seq.tar.gz](https://hpc.nih.gov/~caoy7/pub/9.ryder/7.human_HeLa_H3K9ac_TSA_ChIP-seq.tar.gz)      
 Reference: [Patel et al.](https://www.nature.com/articles/s41587-024-02377-y)  
+
+
+#### 8. RNA-seq and ATAC-seq in Mouse CD8+ T cells 
+This demo uses paired RNA-seq and ATAC-seq data from CD8+ T cells under resting and stimulated conditions. It demonstrates how Ryder can use transcription start sites (TSSs) of stably expressed genes as internal reference regions for ATAC-seq normalization, providing an alternative to CTCF-based reference regions. Stable genes were selected from the matched RNA-seq data, and ATAC-seq peaks overlapping their TSSs were used as Ryder reference regions.     
+Dataset: [8.Mice_CD8_ResVsSim_RNA_ATAC-seq.tar.gz](https://hpc.nih.gov/~caoy7/pub/9.ryder/8.Mice_CD8_ResVsSim_RNA_ATAC-seq.tar.gz)      
+Reference: [Shan et al.](https://www.nature.com/articles/s41590-022-01131-3)     
+

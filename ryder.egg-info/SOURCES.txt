@@ -1,4 +1,5 @@
 .gitignore
+LICENSE
 README.md
 setup.py
 ryder.egg-info/PKG-INFO
@@ -9,4 +10,3 @@ ryder.egg-info/top_level.txt
 src/__init__.py
 src/patrol.py
 src/paw.py
-test/run.sh
