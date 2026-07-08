@@ -5,7 +5,6 @@
 [![Language](https://img.shields.io/github/languages/top/YaqiangCao/ryder)](https://img.shields.io/github/languages/top/YaqiangCao/ryder) 
 [![Stars](https://img.shields.io/github/stars/YaqiangCao/ryder?logo=GitHub&color=yellow)](https://github.com/YaqiangCao/ryder/stargazers) 
 <img alt="ViewCount" src="https://views.whatilearened.today/views/github/YaqiangCao/ryder.svg">
-[![Clones](https://img.shields.io/badge/dynamic/json?color=success&label=Clone&query=count&url=https://gist.githubusercontent.com/YaqiangCao/3e13bd554104e813cad0dc10413389c3/raw/ryder_clone.json&logo=github)](https://github.com/YaqiangCao/ryder)
 [![Downloads](https://img.shields.io/github/downloads/YaqiangCao/ryder/total?label=release%20downloads&logo=github)](https://github.com/YaqiangCao/ryder/releases)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21267457.svg)](https://doi.org/10.5281/zenodo.21267457)  
 
