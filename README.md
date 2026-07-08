@@ -5,8 +5,8 @@
 [![Language](https://img.shields.io/github/languages/top/YaqiangCao/ryder)](https://img.shields.io/github/languages/top/YaqiangCao/ryder) 
 [![Stars](https://img.shields.io/github/stars/YaqiangCao/ryder?logo=GitHub&color=yellow)](https://github.com/YaqiangCao/ryder/stargazers) 
 <img alt="ViewCount" src="https://views.whatilearened.today/views/github/YaqiangCao/ryder.svg">
-[![GitHub clones](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYaqiangCao%2Fryder%2Fmain%2Fbadges%2Fclone-count.json)](https://github.com/YaqiangCao/ryder)
-[![GitHub downloads](https://img.shields.io/github/downloads/YaqiangCao/ryder/total?label=release%20downloads&logo=github)](https://github.com/YaqiangCao/ryder/releases)
+[![clones](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FYaqiangCao%2Fryder%2Fmain%2Fbadges%2Fclone-count.json)](https://github.com/YaqiangCao/ryder)
+[![downloads](https://img.shields.io/github/downloads/YaqiangCao/ryder/total?label=release%20downloads&logo=github)](https://github.com/YaqiangCao/ryder/releases)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21267457.svg)](https://doi.org/10.5281/zenodo.21267457)  
 
 </div>
