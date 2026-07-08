@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use Ryder, please cite the software and the associated manuscript."
+title: "Ryder: Epigenome normalization using a two-tier model and internal reference regions"
+type: software
+authors:
+  - given-names: Yaqiang
+    family-names: Cao
+    affiliation: "Laboratory of Epigenome Biology, Systems Biology Center, Division of Intramural Research, National Heart, Lung, and Blood Institute, National Institutes of Health"
+  - given-names: Guangzhe
+    family-names: Ge
+    affiliation: "Laboratory of Epigenome Biology, Systems Biology Center, Division of Intramural Research, National Heart, Lung, and Blood Institute, National Institutes of Health"
+  - given-names: Keji
+    family-names: Zhao
+    affiliation: "Laboratory of Epigenome Biology, Systems Biology Center, Division of Intramural Research, National Heart, Lung, and Blood Institute, National Institutes of Health"
+version: "1.0.0"
+date-released: "2026-07-08"
+license: "BSD-3-Clause"
+repository-code: "https://github.com/YaqiangCao/ryder"
+abstract: "Ryder is a Python package for normalization and differential analysis of epigenomic signal tracks using a two-tier model and stable internal reference regions."
+keywords:
+  - epigenomics
+  - normalization
+  - ChIP-seq
+  - ATAC-seq
+  - DNase-seq
+  - CUT&RUN
+  - MNase-seq
+  - internal reference regions
