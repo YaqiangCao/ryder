@@ -1,0 +1,188 @@
+name: Update Ryder clone-count badge
+
+on:
+  schedule:
+    - cron: "17 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  OWNER: YaqiangCao
+  REPO: ryder
+  HISTORY_FILE: badges/clone-history.json
+  BADGE_FILE: badges/clone-badge.json
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Ryder repository
+        uses: actions/checkout@v4
+
+      - name: Check token
+        env:
+          TOKEN: ${{ secrets.RYDER_TRAFFIC_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${TOKEN:-}" ]; then
+            echo "::error::RYDER_TRAFFIC_TOKEN is empty or not set."
+            exit 1
+          fi
+
+          echo "::add-mask::${TOKEN}"
+          echo "RYDER_TRAFFIC_TOKEN is present."
+
+      - name: Fetch current GitHub clone traffic
+        env:
+          TOKEN: ${{ secrets.RYDER_TRAFFIC_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::${TOKEN}"
+
+          HTTP_STATUS=$(curl -sS -L \
+            -o current.json \
+            -w "%{http_code}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${OWNER}/${REPO}/traffic/clones?per=day")
+
+          echo "GitHub traffic API HTTP status: ${HTTP_STATUS}"
+          cat current.json
+          echo
+
+          if [ "${HTTP_STATUS}" = "401" ]; then
+            echo "::error::Bad credentials. Regenerate the token and update RYDER_TRAFFIC_TOKEN."
+            exit 1
+          fi
+
+          if [ "${HTTP_STATUS}" = "403" ]; then
+            echo "::error::Token is valid but lacks access. It needs Administration: read permission for YaqiangCao/ryder."
+            exit 1
+          fi
+
+          if [ "${HTTP_STATUS}" != "200" ]; then
+            echo "::error::Unexpected GitHub traffic API status ${HTTP_STATUS}."
+            exit 1
+          fi
+
+      - name: Merge clone counts and update badge JSON
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          history_path = Path("badges/clone-history.json")
+          badge_path = Path("badges/clone-badge.json")
+
+          def load_json(path, default):
+              try:
+                  return json.loads(path.read_text(encoding="utf-8"))
+              except Exception:
+                  return default
+
+          current = load_json(Path("current.json"), {"count": 0, "uniques": 0, "clones": []})
+
+          if "message" in current:
+              raise SystemExit(f"GitHub API returned an error: {current}")
+
+          previous = load_json(history_path, {
+              "repo": "YaqiangCao/ryder",
+              "count": 0,
+              "uniques": 0,
+              "last_14_days_count": 0,
+              "last_14_days_uniques": 0,
+              "last_updated": None,
+              "clones": []
+          })
+
+          merged = {}
+
+          for item in previous.get("clones", []):
+              timestamp = item.get("timestamp")
+              if timestamp:
+                  merged[timestamp] = {
+                      "timestamp": timestamp,
+                      "count": int(item.get("count", 0)),
+                      "uniques": int(item.get("uniques", 0)),
+                  }
+
+          # GitHub returns the most recent 14 days. Overwrite overlapping dates
+          # with the newest API values because recent daily counts can change.
+          for item in current.get("clones", []):
+              timestamp = item.get("timestamp")
+              if timestamp:
+                  merged[timestamp] = {
+                      "timestamp": timestamp,
+                      "count": int(item.get("count", 0)),
+                      "uniques": int(item.get("uniques", 0)),
+                  }
+
+          clones = [merged[t] for t in sorted(merged)]
+
+          total_count = sum(item["count"] for item in clones)
+          total_uniques = sum(item["uniques"] for item in clones)
+
+          history = {
+              "repo": "YaqiangCao/ryder",
+              "count": total_count,
+              "uniques": total_uniques,
+              "last_14_days_count": int(current.get("count", 0)),
+              "last_14_days_uniques": int(current.get("uniques", 0)),
+              "last_updated": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "clones": clones,
+          }
+
+          badge = {
+              "schemaVersion": 1,
+              "label": "Clone",
+              "message": str(total_count),
+              "color": "success",
+              "namedLogo": "github"
+          }
+
+          history_path.write_text(json.dumps(history, indent=2) + "\n", encoding="utf-8")
+          badge_path.write_text(json.dumps(badge, indent=2) + "\n", encoding="utf-8")
+
+          print("Updated clone history:")
+          print(json.dumps({
+              "count": total_count,
+              "uniques": total_uniques,
+              "last_14_days_count": history["last_14_days_count"],
+              "last_14_days_uniques": history["last_14_days_uniques"],
+              "n_days": len(clones),
+              "last_updated": history["last_updated"]
+          }, indent=2))
+          PY
+
+      - name: Commit updated badge files
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add badges/clone-history.json badges/clone-badge.json
+
+          if git diff --cached --quiet; then
+            echo "No badge update needed."
+          else
+            git commit -m "Update Ryder clone-count badge"
+            git push
+          fi
+
+      - name: Show final badge files
+        run: |
+          set -euo pipefail
+          echo "clone-history.json:"
+          cat badges/clone-history.json
+          echo
+          echo "clone-badge.json:"
+          cat badges/clone-badge.json
