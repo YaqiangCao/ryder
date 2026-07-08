@@ -8,7 +8,7 @@ ps = [
 
 setup(
     name='ryder',
-    version="1.0.0",
+    version="0.2",
     author='Yaqiang Cao',
     author_email='caoyaqiang0410@gmail.com',
     url='https://github.com/YaqiangCao/ryder',
