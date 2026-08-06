@@ -30,6 +30,7 @@ History:
 2025-05-02: remove GMM and estimate a noise cutoff, much faster and general applied
 2025-05-15: Add a mode for data like MNase-seq or some time can not distinguish background and signal
 2025-06-19: Add a parameter to control noise. 
+2026-08-06: Optimized mahalanobis distance caculation by codex
 """
 
 __author__ = "CAO Yaqiang"
@@ -230,7 +231,8 @@ def mahalanobis(matrix):
     invCov = np.linalg.inv(cov)
     center = np.mean(matrix, axis=0)
     diff = matrix - center
-    distances = np.dot(np.dot(diff, invCov), diff.T).diagonal()
+    #distances = np.dot(np.dot(diff, invCov), diff.T).diagonal()
+    distances = np.sum((diff @ invCov) * diff, axis=1) #improved by codex on 2026-08-06
     p_values = 1 - chi2.cdf(distances, matrix.shape[1] - 1)
     return distances, p_values
 

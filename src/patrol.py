@@ -16,6 +16,7 @@ It involves the following steps:
 
 
 2025-04-21: Basically finished. 
+2026-08-06: Optimized mahalanobis distance caculation by codex
 """
 
 __author__ = "CAO Yaqiang"
@@ -279,7 +280,8 @@ def mahalanobis(matrix):
     invCov = np.linalg.inv(cov)
     center = np.mean(matrix, axis=0)
     diff = matrix - center
-    distances = np.dot(np.dot(diff, invCov), diff.T).diagonal()
+    #distances = np.dot(np.dot(diff, invCov), diff.T).diagonal()
+    distances = np.sum((diff @ invCov) * diff, axis=1) #improved by codex on 2026-08-06
     p_values = 1 - chi2.cdf(distances, matrix.shape[1] - 1)
     return distances, p_values
 
