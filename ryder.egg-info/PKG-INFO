@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: ryder
-Version: 0.2
+Version: 0.3
 Summary: Epigenome normalization with internal reference and variable features identifications.
 Home-page: https://github.com/YaqiangCao/ryder
 Author: Yaqiang Cao

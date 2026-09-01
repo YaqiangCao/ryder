@@ -835,7 +835,7 @@ def normTgtBw(
     default=10000,
     type=int,
     help=
-    "Extension size (in base pairs) to define the region around reference centers used for classification with the Gaussian Mixture Model (GMM). For narrow peaks, a typical value is 10,000 bp. For broad peaks (e.g., H3K27me3), consider increasing this value (e.g., 50,000 bp). For some or specific DNase-seq/ATAC-seq footprinting analysis, narrow down to 200 if default one does not work well."
+    "Extension size (in base pairs) around reference-region centers used to estimate noise and plotting aggregate signal profiles before and after normalization. For narrow peaks, a typical value is 10,000 bp. For broad peaks (e.g., H3K27me3), consider increasing this value (e.g., 50,000 bp). For some or specific DNase-seq/ATAC-seq footprinting analysis, narrow down to 200 if default one does not work well."
 )
 @click.option(
     "-mode",
