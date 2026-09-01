@@ -151,16 +151,16 @@ Options:
   -lt TEXT                        Label for the treatment sample. This label
                                   is used in plots and output messages.
                                   Default: 'trt'
-  -ext INTEGER                    Extension size (in base pairs) to define the
-                                  region around reference centers used for
-                                  classification with the Gaussian Mixture
-                                  Model (GMM). For narrow peaks, a typical
-                                  value is 10,000 bp. For broad peaks (e.g.,
-                                  H3K27me3), consider increasing this value
-                                  (e.g., 50,000 bp). For some or specific
-                                  DNase-seq/ATAC-seq footprinting analysis,
-                                  narrow down to 200 if default one does not
-                                  work well.
+  -ext INTEGER                    Extension size (in base pairs) around
+                                  reference-region centers used to estimate
+                                  noise and plotting aggregate signal profiles
+                                  before and after normalization. For narrow
+                                  peaks, a typical value is 10,000 bp. For
+                                  broad peaks (e.g., H3K27me3), consider
+                                  increasing this value (e.g., 50,000 bp). For
+                                  some or specific DNase-seq/ATAC-seq
+                                  footprinting analysis, narrow down to 200 if
+                                  default one does not work well.
   -mode [norm|lr]                 Specifies the method used to draw the
                                   distribution of target sample to reference
                                   sample. Available options are norm (z-score
