@@ -3,7 +3,7 @@ from setuptools import setup, find_packages  # Import find_packages
 
 ps = [
     "joblib", "numpy", "seaborn", "pandas", "scipy", "scikit-learn",
-    "matplotlib", "tqdm", "pyBigWig", "click"
+    "matplotlib", "tqdm", "pyBigWig", "click", "statsmodels"
 ]
 
 setup(
@@ -26,7 +26,7 @@ setup(
         'Source': 'https://github.com/YaqiangCao/ryder',
     },
     packages=find_packages(exclude=['test']),
-    scripts=["src/paw.py", "src/patrol.py"],
+    scripts=["src/paw.py", "src/patrol.py", "src/patrol_replicates.py"],
     setup_requires=ps,
     install_requires=ps,
 )

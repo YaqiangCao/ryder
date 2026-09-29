@@ -36,6 +36,7 @@ joblib
 tqdm
 pyBigWig
 scikit-learn
+statsmodels
 ```
 
 Linux command line tools:
@@ -250,6 +251,47 @@ Options:
   -h, --help              Show this message and exit.
 
 ```
+
+### Detect differential regions with biological replicates
+
+`patrol_replicates.py` performs a DESeq2-style negative-binomial Wald test on
+raw paired-end fragment counts while incorporating PAW normalization as a
+region-by-sample offset. It requires at least two replicates per condition.
+Continuous normalized bigWig values are not rounded into pseudo-counts.
+
+First normalize every non-anchor replicate to a common anchor with `paw.py`,
+using the same stable reference BED for every comparison. Then prepare a
+tab-separated sample sheet:
+
+```text
+sample  condition  bedpe  raw_bw  normalized_bw
+WT_rep1 WT         WT_rep1.bedpe.gz  WT_rep1.bw  WT_rep1.bw
+WT_rep2 WT         WT_rep2.bedpe.gz  WT_rep2.bw  paw_WT_rep2.bw
+KO_rep1 KO         KO_rep1.bedpe.gz  KO_rep1.bw  paw_KO_rep1.bw
+KO_rep2 KO         KO_rep2.bedpe.gz  KO_rep2.bw  paw_KO_rep2.bw
+```
+
+The anchor sample has the same path in `raw_bw` and `normalized_bw`. Run:
+
+```bash
+patrol_replicates.py \
+  -r candidate_regions.bed \
+  -s samples.tsv \
+  -o results/WT_vs_KO \
+  --reference-condition WT \
+  --treatment-condition KO \
+  --mapq 10 --fdr 0.05 --lfc 1
+```
+
+The output includes raw counts, PAW multipliers, normalization factors,
+negative-binomial statistics, directional BED files, an MA plot, a sample PCA
+plot, a dispersion plot, and run metadata. This implementation follows the
+DESeq2 mean model with feature-specific normalization factors, but its
+dispersion shrinkage is not intended to reproduce DESeq2 or PyDESeq2 exactly.
+
+The repository includes a complete two-WT-versus-two-KO example in
+`demo/demoData/1.Mice_DN3_GATA3_KO_DNase-seq/replicate_analysis/run_GATA3_replicate_analysis.sh`.
+Its PAW calls all use the GATA3 demo's `CTCFnoGATA3.bed` reference set.
 
 ---
 *The package's name, along with the `paw.py` and `patrol.py` scripts, was inspired by the many hours my son Will and I spent watching PAW Patrol together during its development. Whenever a job's too big, no pup's too small!*
