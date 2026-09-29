@@ -41,6 +41,8 @@ __email__ = "caoyaqiang0410@gmail.com"
 #sys
 import os
 import random
+import shutil
+import subprocess
 import warnings
 from glob import glob
 from datetime import datetime
@@ -746,6 +748,31 @@ def _norm(bw_filepath,
     bwi.close()
 
 
+def _convertBedGraphToBigWig(bdg_filepath, chrom_sizes_filepath, bw_filepath):
+    """Convert bedGraph to bigWig and remove bedGraph only after success."""
+    try:
+        subprocess.run(
+            ["bedGraphToBigWig", bdg_filepath, chrom_sizes_filepath, bw_filepath],
+            check=True,
+        )
+    except FileNotFoundError as error:
+        raise RuntimeError(
+            "bedGraphToBigWig was not found in PATH; retaining "
+            f"intermediate file: {bdg_filepath}"
+        ) from error
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError(
+            f"bedGraphToBigWig failed; retaining intermediate file: {bdg_filepath}"
+        ) from error
+
+    if not os.path.isfile(bw_filepath) or os.path.getsize(bw_filepath) == 0:
+        raise RuntimeError(
+            "bedGraphToBigWig completed without producing a nonempty output; "
+            f"retaining intermediate file: {bdg_filepath}"
+        )
+    os.remove(bdg_filepath)
+
+
 def normTgtBw(
     bw_filepath,
     noise,
@@ -774,14 +801,22 @@ def normTgtBw(
     chroms = list(bwi.chroms().keys())
     bwi.close()
 
-    Parallel(n_jobs=n_jobs, backend="multiprocessing")(
-        delayed(_norm)(bw_filepath, chrom, noise, bg_sf, fg_sf, sig_sf_params,
-                       os.path.join(temp_dir, f"{chrom}.bdg"), flat)
-        for chrom in tqdm(chroms))
-    bdg_files = sorted(glob(os.path.join(temp_dir, "*.bdg")))
-    os.system("cat %s > %s.bdg" % (" ".join(bdg_files), fnOut))
-    os.system(f"bedGraphToBigWig {fnOut}.bdg {csf} {fnOut}.bw")
-    os.system(f"rm -fr {temp_dir}")
+    combined_bdg = f"{fnOut}.bdg"
+    output_bw = f"{fnOut}.bw"
+    try:
+        Parallel(n_jobs=n_jobs, backend="multiprocessing")(
+            delayed(_norm)(bw_filepath, chrom, noise, bg_sf, fg_sf,
+                           sig_sf_params,
+                           os.path.join(temp_dir, f"{chrom}.bdg"), flat)
+            for chrom in tqdm(chroms))
+        bdg_files = sorted(glob(os.path.join(temp_dir, "*.bdg")))
+        with open(combined_bdg, "wb") as output_handle:
+            for bdg_file in bdg_files:
+                with open(bdg_file, "rb") as input_handle:
+                    shutil.copyfileobj(input_handle, output_handle)
+        _convertBedGraphToBigWig(combined_bdg, csf, output_bw)
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 ######################################
@@ -835,7 +870,7 @@ def normTgtBw(
     default=10000,
     type=int,
     help=
-    "Extension size (in base pairs) to define the region around reference centers used for classification with the Gaussian Mixture Model (GMM). For narrow peaks, a typical value is 10,000 bp. For broad peaks (e.g., H3K27me3), consider increasing this value (e.g., 50,000 bp). For some or specific DNase-seq/ATAC-seq footprinting analysis, narrow down to 200 if default one does not work well."
+    "Extension size (in base pairs) around reference-region centers used to estimate noise and plotting aggregate signal profiles before and after normalization. For narrow peaks, a typical value is 10,000 bp. For broad peaks (e.g., H3K27me3), consider increasing this value (e.g., 50,000 bp). For some or specific DNase-seq/ATAC-seq footprinting analysis, narrow down to 200 if default one does not work well."
 )
 @click.option(
     "-mode",

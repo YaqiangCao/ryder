@@ -9,4 +9,7 @@ ryder.egg-info/requires.txt
 ryder.egg-info/top_level.txt
 src/__init__.py
 src/patrol.py
+src/patrol_replicates.py
 src/paw.py
+tests/test_patrol_replicates.py
+tests/test_paw_outputs.py
