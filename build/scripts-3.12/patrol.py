@@ -91,6 +91,18 @@ def rprint(message):
     print(report)
 
 
+def setLegendMarkerSize(legend, marker_size=10):
+    """Set legend marker sizes across old and new Matplotlib APIs."""
+    handles = getattr(legend, "legend_handles", None)
+    if handles is None:
+        handles = getattr(legend, "legendHandles", ())
+    for handle in handles:
+        if hasattr(handle, "set_sizes"):
+            handle.set_sizes([marker_size])
+        elif hasattr(handle, "set_markersize"):
+            handle.set_markersize(marker_size)
+
+
 def readBed(filepath):
     """
     Read a BED format file and return regions with at least three columns.
@@ -402,9 +414,7 @@ def showMDMA(
     leg = ax.legend(frameon=False,
                     markerscale=0,
                     labelcolor=["gray", colors[0], colors[1]])
-    #for handle in leg.legendHandles:
-    for handle in leg.legend_handles:
-        handle._sizes = [10]
+    setLegendMarkerSize(leg)
     ax.axhline(0, color="gray", linestyle="--")
     ax.axvline(noise, color="gray", linestyle="--")
     _noise = 2**noise
@@ -480,9 +490,7 @@ def showFCMA(
     leg = ax.legend(frameon=False,
                     markerscale=0,
                     labelcolor=["gray", colors[0], colors[1]])
-    #for handle in leg.legendHandles:
-    for handle in leg.legend_handles:
-        handle._sizes = [10]
+    setLegendMarkerSize(leg)
     ax.axhline(0, color="gray", linestyle="--")
     ax.axhline(mcut, color=colors[1], linestyle="--")
     ax.axhline(-mcut, color=colors[0], linestyle="--")
@@ -555,9 +563,7 @@ def showFCnMA(
     leg = ax.legend(frameon=False,
                     markerscale=0,
                     labelcolor=["gray", colors[0], colors[1]])
-    #for handle in leg.legendHandles:
-    for handle in leg.legend_handles:
-        handle._sizes = [10]
+    setLegendMarkerSize(leg)
     ax.axhline(0, color="gray", linestyle="--")
     ax.axhline(mcut, color=colors[1], linestyle="--")
     ax.axhline(-mcut, color=colors[0], linestyle="--")

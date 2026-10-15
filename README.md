@@ -252,7 +252,7 @@ Options:
 
 ```
 
-### Detect differential regions with biological replicates
+### Detect differential regions with biological replicates (testing)
 
 `patrol_replicates.py` performs a DESeq2-style negative-binomial Wald test on
 raw paired-end fragment counts while incorporating PAW normalization as a
