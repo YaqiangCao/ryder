@@ -22,7 +22,7 @@ If you find Ryder useful, please give us a star at github and cite our paper:
 
 ---
 ### Required python packages and other tools 
-Al required other packages can be installed through conda or pip. 
+All required other packages can be installed through conda or pip. 
 
 python packages:
 ```
