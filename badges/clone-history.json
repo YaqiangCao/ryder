@@ -1,10 +1,10 @@
 {
   "repo": "YaqiangCao/ryder",
-  "count": 1356,
-  "uniques": 937,
-  "last_14_days_count": 146,
-  "last_14_days_uniques": 74,
-  "last_updated": "2026-11-24T19:30:09.396442Z",
+  "count": 1361,
+  "uniques": 941,
+  "last_14_days_count": 134,
+  "last_14_days_uniques": 68,
+  "last_updated": "2026-11-25T18:39:13.656486Z",
   "clones": [
     {
       "timestamp": "2026-06-24T00:00:00Z",
@@ -770,6 +770,11 @@
       "timestamp": "2026-11-23T00:00:00Z",
       "count": 12,
       "uniques": 7
+    },
+    {
+      "timestamp": "2026-11-24T00:00:00Z",
+      "count": 5,
+      "uniques": 4
     }
   ]
 }
